@@ -112,6 +112,15 @@ def validate_strategy(path):
             if isinstance(sl, dict) and sl.get("enabled") is True:
                 if not (isinstance(s.get("budget"), dict) and s["budget"].get("base_salary_range")):
                     err("strategy.yaml: 开了 salary_leverage 就必须给 `budget.base_salary_range`(破格框架的基准)")
+            # 🔴 红线闸:定制招呼语外发必审,require_user_confirmation 恒 true 不可关(schema const:true)
+            cg = intel.get("custom_greetings")
+            if isinstance(cg, dict):
+                if "require_user_confirmation" in cg and cg.get("require_user_confirmation") is not True:
+                    err("strategy.yaml: `intelligence.custom_greetings.require_user_confirmation` 恒为 true,不可设 false"
+                        "(红线:外发内容逐条用户确认,schema 里是 const:true)")
+                if cg.get("enabled") is True and cg.get("require_user_confirmation") is not True:
+                    err("strategy.yaml: 开了 custom_greetings 必须显式 `require_user_confirmation: true` —— "
+                        "定制招呼语要真实外发,红线要求每条先给用户过目(Y/N/编辑),缺省/false 都不行")
     return s
 
 

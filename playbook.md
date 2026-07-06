@@ -96,6 +96,7 @@ Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
 Step 0.5  扫回执(补全 full 档异步闭环)  [operation-map §7c 扫回执机制]
   · 进沟通页(左菜单点「沟通」,别冷加载 URL)→ 点「沟通中」漏斗 tab(div[title=沟通中])→ 取活跃对话名单
   · 与 ledger 里 status∈{greeted,chatted} 的人取交集 = 本轮"回复了、求简历已解锁"的人
+  · 对交集每人:打开会话后先核收件人(.name-container .name-box = 该人名,三验①)再点「求简历」——求简历也是外发,发错人同样不可撤回
   · 对交集每人(full/greet 档):开会话 → 点「求简历」(此时 enabled)→ 确认框「确定向牛人索取简历吗?」→ 确定 → ledger 记 request_resume;换电话/微信仍红线不自动
   · 没交集就跳过(说明还没人回);inbound 天然"没status"不算回复,别误判
 
