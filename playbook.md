@@ -115,9 +115,13 @@ Step 3  全局去重              [§6 / operation-map §7f]
 
 Step 4  LLM 打分              [§4]
 
-Step 5  搜索通道(补量)       [operation-map §2B]  —— 仅当 A 档不足 target_qualified
-  · ⚠ 先清默认预选(关键词/职位;城市默认空不污染),选择器已验证见 operation-map §2B → 清后 eval 读回 `.search-current-job` 文本 + get value 关键词框确认,再信结果。**职位下拉必须设成目标岗**(决定开聊/打招呼归属岗位)。搜完去 `searchFrame` 读结果。
-  · 设 hard_filters;关键词矩阵+排序轮换;浏览详情免费;开聊耗畅聊卡→ Step 6 按 budget
+Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DOM 兜底]  —— 仅当 A 档不足 target_qualified
+  · **主路径=接口(2026-07-06 起)**:同源 sync-XHR 调
+    `GET /wapi/zpitem/web/boss/search/geeks.json?page=N&jobId={encJobId}&keywords={关键词}&city={cityCode}&experience={min,max}&salary={min,max}&age={min,max}&degree={code}&source=1` →
+    从 `zpData.geeks[]`(打码人)逐页拉到 `hasMore=false`。**接口直接传干净 keywords+筛选,免掉了 DOM 路径"清默认预选"那一套坑**;关键词矩阵在 keywords 里逐组轮换。
+  · **DOM 兜底**:接口异常才降级到 §2B 的 DOM 搜索(那时才需清默认预选 + searchFrame 读结果)。
+  · 去重:`geeks.json` 的 `friendRelationStatus`/`geekCallStatus` 命中即已联系过,skip(§7f)。
+  · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要PII)→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊仍走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5]
   · 优先免费推荐通道打招呼;搜索来的按 budget.chat_cards 逐张记账,超停

@@ -239,8 +239,16 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(如 `<encJobId>`),账号/职位相关,别硬编码。
 - **筛选参数**:age/degree/experience/salary 等直接对应 hard_filters(格式如 `age=16,-1` 区间、`degree/experience/salary=0` 表不限),接口筛比页面点更精确。
 
-### 🟡 搜索通道 `GET /wapi/zpitem/web/boss/search/searchRecommend.json?jobId={enc}&encryptJobId={enc}&page=N&extraStr={...}`
-`extraStr` 里带 `quickFilter.filterList`(逗号分隔的关键词/筛选词)——**⚠ 默认预选的"热门词"污染就藏在这里**(实测默认带 985院校/agent/大模型/意图识别… 一堆),接口化搜索前要把 extraStr 换成自己的干净筛选。相关端点:`getPositionKeyWords`、`zpjob/job/search/job/list`。**搜索接口比推荐略复杂(extraStr 编码 + 默认污染),优先先把推荐通道接口化。**
+### 🟢 搜索通道(主路径,2026-07-06 实测)—— 接口反而比 DOM 干净,直接跳过"清默认"这套 UI 操作
+真正的关键词搜索端点是 **`geeks.json`**(不是 `searchRecommend.json`——那个是打开搜索页时的"默认推荐搜索",带热门词污染):
+`GET /wapi/zpitem/web/boss/search/geeks.json?page=N&jobId={encJobId}&keywords={关键词}&city={cityCode}&experience={min,max}&salary={min,max}&age={min,max}&degree={code}&schoolLevel=-1&gender=-1&applyStatus=-1&source=1&filterParams={JSON}`
+- **`keywords`** = 你的搜索词(URL 编码);多个词可用它自带的分词(响应 `zpData.segs` 会回显解析结果如 `语音识别`语音算法`asr`)。
+- **`jobId`** = encJobId(触达归属岗,同推荐通道那个)。
+- **筛选参数**:`city`=Boss cityCode(`-2`=不限;具体码从 `GET /wapi/zpCommon/data/getCityList` 拿)、`experience/salary/age`=`min,max` 区间(`-1,-1`=不限)、`degree`=学历码(`0`/`-1`=不限、`201`≈本科)。`filterParams` 是个 JSON(sortType/region 等),可给最小 `{"sortType":1,"region":{"cityCode":"-2"}}`。
+- **✅ 关键好处:接口直接构造干净 `keywords`+筛选参数,根本不用去 UI 里"清默认预选"那一套**(那是 DOM 路径才有的坑)。`extraStr.quickFilter` 是 Boss 给的建议筛选 chips,可留空/忽略。
+- **响应**:`zpData.geeks[]`(**注意 key 是 `geeks` 不是 `geekList`**)+ `zpData.hasMore`(翻页)。搜索结果是**打码候选人**(`geekCard.name` 形如 `"S**"`)。
+- **每个候选人**:`geekCard{ name(打码), gender, city, workYear, salary/lowSalary/hightSalary, geekDesc(优势), degreeName, current(当前公司/职位), expect(期望), encryptExpectId, securityId }` + 顶层 `friendRelationStatus`(**搜索通道的去重标**,是否已建立关系/联系过)、`geekCallStatus`、`read`、`works`、`ageDesc`。
+- **⚠ 触达搜索结果要花畅聊卡**(打码人,开聊=3卡+捆绑索要PII,见 §2B);接口只负责**免费拉列表/筛选**,真要触达仍走 UI 开聊(有确认+境外提示等门)。
 
 ### 🔴 会话/消息列表 = WebSocket(没有干净 REST)
 - `GET /wapi/zpitem/web/chat/message/list/box` 实测只是**通知盒摘要**(单对象 showBox/title/messageInfo),**不是会话列表**。
@@ -248,7 +256,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 ## 7f. ✅ 全局去重(2026-07-06,防 24h 重复触达风控)
 触达前判"这人是不是已经接触过",两个来源:
-1. **接口内建标(推荐通道首选)**:`rec/geek/list` 里 `haveChatted==1` 或 `isFriend==1` → 已接触,**直接 skip、别再打招呼**。这是 Boss 官方口径,最准。
+1. **接口内建标(首选,Boss 官方口径最准)**:推荐通道 `rec/geek/list` 里 `haveChatted==1` 或 `isFriend==1`;搜索通道 `geeks.json` 里 `friendRelationStatus`(已建立关系/联系过)或 `geekCallStatus`。命中 → 已接触,**直接 skip、别再触达**。
 2. **账本交叉比对(跨通道/搜索/inbound)**:对接口没给 haveChatted 的人(如搜索命中的打码人),用 ledger 里 `status∈{greeted,chatted,replied,resume_received,contact_exchanged}` 的人做匹配:键=`(geekName 或打码名前缀) + 最近公司 + 期望`,相似即判重复(打码名↔真名可能同一人,命中标 `possible_dup` 人工确认)。
 3. ledger 建议加 `last_touched_date` 字段,配合"同一人 24h 内不重复触达"的软规则。
 **为什么要紧**:同一候选人短时被多次打招呼(跨策略/跨同事)极易触发爬虫风控,还砸雇主品牌——这是 silent killer。
@@ -275,7 +283,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 **待补**:
 - [ ] 会话内**约面**(`.interview`「约面试」)发起流程 —— 一级第④项,唯一没跑的核心动作(用户暂缓;红线不自动但操作待文档化)
 - [ ] 自定义打招呼语的**实际设置**(功能已记录,措辞待用户定)—— 是"招聘运营深度"里分档定制招呼语的落地前提
-- [ ] **搜索通道接口化**(searchRecommend.json 已定位,但 extraStr 编码 + 默认污染较复杂,清干净参数后可接;见 §7e🟡)
+- [x] **搜索通道接口化**(geeks.json 全参数+响应结构+friendRelationStatus去重标,2026-07-06 实测,见 §7e🟢;接口直接传干净keywords,免掉清默认坑)
 - [ ] 会话/消息发送 = WebSocket,无干净 REST(§7e🔴);回执类去重走 DOM 漏斗或推荐接口 haveChatted
 - [ ] 招聘运营直觉(定制招呼语 / 薪资破格建议 / 当日回复率反馈环)—— 见 ROADMAP.md #8-#10
 

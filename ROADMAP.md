@@ -10,7 +10,7 @@
 
 ## 🎯 如果只做 3 件事
 
-1. ~~接口层主路径 + 全局去重(#2 #3)~~ ✅ **推荐通道 + 去重已做(2026-07-06)** —— 推荐已走 `rec/geek/list` 接口(解决虚拟滚动退化)、去重用接口自带 `haveChatted`。剩搜索通道接口化(extraStr 较复杂)可后补。**基建这一步落地了,从演示级往生产级迈了关键一步。**
+1. ~~接口层主路径 + 全局去重(#2 #3)~~ ✅ **已做(2026-07-06)** —— 推荐(`rec/geek/list`)+ 搜索(`geeks.json`)双通道都走接口主路径(解决虚拟滚动退化、搜索还免掉了清默认坑),去重用接口自带 `haveChatted`/`friendRelationStatus`。**这道基建门槛跨过了——从演示级迈到生产级的关键一步。** 只剩会话列表是 WebSocket(无干净 REST,回执走 DOM 漏斗)。
 2. **当日反馈环 + 定制打招呼语(#9 #8)** —— 最高性价比的"智能感":会看回复率调策略、会按背景写文案。用户第一次感到"它在思考",回复率数据翻倍。
 3. **参数化浏览器 ID + SAFETY.md + CONTRIBUTING.md(#1 #15 #16)** —— 开源采纳最小三件套:setup 不卡壳、风险讲清楚、社区知道怎么帮修选择器。没这三样,再好的引擎也只有作者一个人在用。
 
@@ -23,9 +23,11 @@
 **#1 参数化浏览器 ID + `verify-setup` 自检** · `S / 高`
 全文剩余硬编码 `direct_local_...` 换 `<YOUR_BROWSER_ID>`;SKILL.md「用前必做」补一段复制即跑的 Bash,校验 浏览器 ID / 登录 / 每日额度,输出 pass/fail。跨机交接第一个卡点。
 
-**#2 接口层升为推荐主路径,DOM 降 fallback** · `M / 高` · ✅ **推荐通道已做(2026-07-06)**
-推荐通道已接口化:`GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&{filters}` 返回 `geekList[]`(15/页)+`hasMore`,`geekCard` 里 name/经验/学历/优势/期望/教育/工作经历一应俱全 → **虚拟滚动索引退化问题消失、可精确翻页不漏人**;playbook Step 1 已改"接口主路径、401/错误降 DOM,DOM 只用于开详情+点按钮"。见 operation-map §7e。
-> 剩余(未做):**搜索通道** `searchRecommend.json` 已定位但 `extraStr` 编码 + 默认预选污染较复杂,清干净参数后可接;**会话/消息列表 = WebSocket**,无干净 REST(`message/list/box` 只是通知盒摘要),回执类只能走 DOM 漏斗。
+**#2 接口层升为推荐+搜索主路径,DOM 降 fallback** · `M / 高` · ✅ **推荐+搜索通道均已做(2026-07-06)**
+- **推荐**:`GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&{filters}` → `geekList[]`(15/页)+`hasMore`,`geekCard` 全字段 → **虚拟滚动索引退化消失、精确翻页不漏人**。
+- **搜索**:`GET /wapi/zpitem/web/boss/search/geeks.json?page=N&jobId={encJobId}&keywords={词}&{filters}` → `geeks[]`(打码人)+`hasMore` → **接口直接传干净 keywords+筛选,免掉了 DOM 路径"清默认预选"那套坑**;去重用 `friendRelationStatus`。
+- playbook Step 1/5 已改接口主路径、DOM 兜底;见 operation-map §7e。
+> 剩余(未做):**会话/消息列表 = WebSocket**,无干净 REST(`message/list/box` 只是通知盒摘要),回执/会话类去重走 DOM 漏斗或接口的 `haveChatted`/`friendRelationStatus` 标即可。
 
 **#3 全局去重** · `S–M / 高` · ✅ **已做(2026-07-06)**
 比预期更好:推荐接口每个候选人自带 **`haveChatted`/`isFriend`**(Boss 官方"已聊过/已好友"标)→ `haveChatted==1` 直接 skip,最准;接口没给的(搜索打码/inbound)走账本交叉比对(`name+公司+期望` 键,打码名↔真名标 `possible_dup`);加 `last_touched_date` 防 24h 重复触达。见 operation-map §7f + playbook Step 3。堵住了重复打招呼这个风控 silent killer。
