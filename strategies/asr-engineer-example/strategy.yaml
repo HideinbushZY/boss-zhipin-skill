@@ -61,6 +61,11 @@ intelligence:
     enabled: false               # 关时 §4 rule 4 走旧逻辑(超带即封 B)
     scarcity_threshold: 7.5      # 稀缺度 ≥ 此值 且 超带,才建议破格标 A*_salary_sensitive
     break_glass_mode: manual     # manual(每个 A* 都要用户勾同意)| auto(慎用)
+  card_prescreen:                # (4)花卡前质量预判:搜索畅聊卡(3卡/次)开聊前先免费打质量分,别冲动开卡
+    enabled: true                # 默认开(只减少花卡、零外发,越保护越好);见 §11.4
+    min_score: 6                 # 质量分≥此值才建议开卡;3-6 报告待定;<3 不建议
+
+# shared_ledger: strategies/_shared/ledger.jsonl   # (可选)多岗/多策略共享账本,防跨岗重复触达,见 playbook §12;不设=各用各的
 
 # 心跳字段(阶段三才启用,现留白)
 schedule:

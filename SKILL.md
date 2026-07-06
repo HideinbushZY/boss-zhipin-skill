@@ -1,7 +1,7 @@
 ---
 name: boss-zhipin
 description: "Boss直聘招聘者侧网页操作 + 策略驱动寻访引擎。两类触发:(A) 单点操作——搜索候选人/看推荐牛人、读简历、打招呼、搜索畅聊、回复消息、求简历/换电话/换微信、发布或管理职位、约面、查招聘数据/账号权益/牛人管理漏斗;(B) 给一段搜索策略(JD/目标公司职位/人选能力要求)让它自动找人筛人触达并反馈——此时按 playbook.md 跑寻访管线。通过 browser-act 接管已登录的真实 Chrome(chrome-direct)执行。触发后先读 operation-map.md(怎么点页面)+ playbook.md(策略怎么跑)。"
-allowed-tools: Bash(browser-act:*), Read, Write, Edit
+allowed-tools: Bash(browser-act:*), Bash(python3:*), Read, Write, Edit
 metadata:
   author: (packaged as a reusable skill)
   version: "1.0"

@@ -82,6 +82,40 @@
 
 ---
 
+## 常见问题(FAQ)
+
+**Q: 怎么换成我自己的浏览器 id?**
+A: `browser-act browser list` 看你的 chrome-direct id,把 operation-map 里的 `<YOUR_BROWSER_ID>` 全替换。没有 chrome-direct 浏览器就 `browser-act get-skills advanced` 按引导建一个。
+
+**Q: 跑着跑着账号登出了怎么办?**
+A: chrome-direct 接管的是你真实登录的 Chrome,Boss 会话会自然过期、或被重启 Chrome 冲掉。登出后是**微信扫码/短信验证码**页,agent 代替不了——你手机扫码重登即可。⚠ 别让 agent 在 Chrome 0 窗口时 `--allow-restart-chrome`(极易登出)。
+
+**Q: 某个操作点不动 / 选择器报错?**
+A: 大概率 Boss 改版了、类名变了。诊断步骤和贡献方式见 `CONTRIBUTING.md`;优先能用接口(§7e:`rec/geek/list`/`geeks.json`)就别靠 DOM 选择器(接口抗改版一个数量级)。
+
+**Q: 搜索畅聊卡"开聊"怎么这么贵?**
+A: **每次开聊消耗 3 张**(不是 1),而且自动"发起沟通 + 索要简历/微信/电话"(捆绑 PII 请求,碰红线)。余量在搜索结果详情右侧「畅聊卡 剩余次数 xN」。用前务必知情——见 `SAFETY.md`。
+
+**Q: 求简历按钮是灰的点不动?**
+A: 平台前置门——候选人**回复前**(会话 `[送达]`/`[已读]`)求简历 disabled,必须对方回复进「沟通中」才解锁。别用 eval 强点。
+
+**Q: linked_job 配了推荐通道还是不出人?**
+A: 确认 `linked_job` 精确等于你已发布的在线职位名;推荐流打开时有默认预选,或职位 encJobId 没对上。校验配置用 `python3 validate.py strategies/<name>/`。
+
+**Q: strategy.yaml 写错了怎么早点发现?**
+A: 跑前 `python3 validate.py strategies/<name>/`,会报"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range"这类具体错。schema 在 `schemas/`。
+
+**Q: 多个 agent / 我自己也在用这个 Chrome,会冲突吗?**
+A: chrome-direct **接管期间独占**你的 Chrome,你手动操作会打架。跑寻访时别同时手动操作同一个 Chrome;跑完 `browser-act session close <名>` 释放。
+
+**Q: 桥掉线报 `230404 Unknown error`?**
+A: browser-act 控制面/CDP 问题,不是账号封禁(`stealth-extract` 还能用就说明 cloud 没挂)。等 Chrome 完全就绪(AppleScript 能 count windows),再 `browser open <id> <url> --headed --allow-restart-chrome` 重试。详见 operation-map「桥恢复姿势」。
+
+**Q: 定制招呼语 / 反馈环 / 薪资破格怎么开?**
+A: 在 strategy.yaml 的 `intelligence:` 块把对应 `enabled` 改 `true`(默认全关)。建议顺序 ①feedback → ②custom_greetings → ③salary_leverage。逻辑见 playbook §11。
+
+---
+
 ## 隐私说明
 
 本包内示例策略的 `ledger.example.jsonl` 与 `reports/` **全部是虚构脱敏数据**;core 文档里的账号/公司/招聘者/地址/邮箱/真实候选人姓名均已抹除或换成占位符。真机跑出来的候选人数据请自己妥善保管、勿外发(涉及求职者个人信息)。

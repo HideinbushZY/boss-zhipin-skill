@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "boss-zhipin strategy.yaml",
+  "description": "策略配置的正式规格。validate.py 按此校验(不依赖 jsonschema);有 jsonschema 的也可直接用它。",
+  "type": "object",
+  "required": ["name", "rubric", "budget"],
+  "additionalProperties": true,
+  "properties": {
+    "name": { "type": "string", "description": "策略名(唯一,对应 strategies/<name>/)" },
+    "mode": { "enum": ["once"], "description": "现只支持 once(单次+手动);心跳是阶段三" },
+    "linked_job": { "type": "string", "description": "已发布的在线职位名;推荐通道按它匹配。缺则推荐通道禁用" },
+    "hard_filters": {
+      "type": "object",
+      "description": "页面单选硬筛,宁松勿紧",
+      "properties": {
+        "city": { "type": "string" },
+        "degree": { "type": "string" },
+        "experience": { "type": "string" }
+      }
+    },
+    "keywords": {
+      "type": "array",
+      "description": "关键词矩阵:每组=一簇近义/同类词,组间轮换",
+      "items": { "type": "array", "items": { "type": "string" } }
+    },
+    "target_companies": {
+      "type": "array",
+      "description": "命中加分(company_bonus),非硬过滤",
+      "items": { "type": "string" }
+    },
+    "rubric": {
+      "type": "object",
+      "required": ["must"],
+      "properties": {
+        "must": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "硬项:缺一即封顶 B" },
+        "nice": { "type": "array", "items": { "type": "string" }, "description": "命中加分" },
+        "reject": { "type": "array", "items": { "type": "string" }, "description": "命中直接 C 淘汰" }
+      }
+    },
+    "touch_policy": {
+      "enum": ["report_first", "greet_A_capped", "greet_custom", "full"],
+      "default": "full",
+      "description": "触达档,档义见 playbook §5"
+    },
+    "budget": {
+      "type": "object",
+      "properties": {
+        "greets_per_day": { "type": "integer", "description": "当日打招呼上限(账号总额 200/天)" },
+        "chat_cards": { "type": "integer", "description": "本策略可消耗搜索畅聊卡上限(每次开聊=3张)" },
+        "detail_views_per_run": { "type": "integer" },
+        "base_salary_range": {
+          "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2,
+          "description": "岗位基准薪资 [min,max] K;开 salary_leverage 时必填"
+        },
+        "salary_flexibility_pct": { "type": "number", "minimum": 0, "maximum": 50, "description": "预算弹性 %(破格谈薪上限=base_max×(1+pct%))" }
+      }
+    },
+    "target_qualified": { "type": "integer", "default": 10, "description": "攒够 N 个合格(A)即够" },
+    "intelligence": {
+      "type": "object",
+      "description": "运营智能层,三把开关默认全关(见 playbook §11)",
+      "properties": {
+        "custom_greetings": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "mode": { "enum": ["default", "context_aware"] },
+            "tiers": { "type": "array", "items": { "type": "string" } },
+            "max_chars": { "type": "integer" },
+            "require_user_confirmation": { "type": "boolean", "const": true, "description": "红线:恒 true,外发必审" }
+          }
+        },
+        "feedback": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "baseline": { "type": "object" },
+            "thresholds": { "type": "object" },
+            "action": { "type": "object" }
+          }
+        },
+        "salary_leverage": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "scarcity_threshold": { "type": "number" },
+            "break_glass_mode": { "enum": ["manual", "auto"] }
+          }
+        }
+      }
+    },
+    "schedule": { "type": "object", "description": "心跳字段(阶段三才启用)" }
+  }
+}

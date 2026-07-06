@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "boss-zhipin ledger.jsonl (每行一个候选人)",
+  "description": "账本每行是一个候选人对象。整文件是 JSON Lines(每行一个独立 JSON)。daily_stats 另存 daily_stats.jsonl,不在此。",
+  "type": "object",
+  "required": ["id", "name", "status"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "description": "稳定去重键(优先)" },
+    "name": { "type": "string" },
+    "masked": { "type": "boolean", "description": "搜索来的打码名=true" },
+    "source": { "enum": ["recommend", "search", "interaction", "inbound"], "description": "来源通道" },
+    "job": { "type": "string", "description": "沟通职位" },
+    "score": { "type": ["number", "null"], "description": "0-10;unscored 时 null" },
+    "tier": {
+      "enum": ["A", "B", "C", "unscored", "A*", "A*_salary_sensitive", null],
+      "description": "A*=破格档;A*_salary_sensitive=薪资超带但稀缺破格(§11.3)"
+    },
+    "status": {
+      "enum": ["found", "scored", "greeted", "chatted", "pending-reply", "replied",
+        "resume_received", "resume_requested", "contact_exchanged", "interview",
+        "hired", "unfit", "no_reply", "unscored", "inbound_msg"],
+      "description": "状态机,见 playbook §6"
+    },
+    "first_seen": { "type": "string" },
+    "last_action": { "type": "string" },
+    "expect": { "type": ["string", "null"], "description": "期望 城市/方向/薪资" },
+    "company": { "type": ["string", "null"] },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["t", "act"],
+        "properties": {
+          "t": { "type": "string", "description": "日期" },
+          "act": { "type": "string", "description": "greet/reply/request_resume/chat_card/inbound_msg …" },
+          "cost": { "type": "string", "description": "free | 畅聊卡xN" },
+          "result": { "type": "string" },
+          "greeting_mode": { "enum": ["custom", "default"], "description": "定制招呼语(§11.1)" },
+          "greeting_text": { "type": "string" },
+          "greeting_length": { "type": "integer" },
+          "greeting_rationale": { "type": "string" }
+        }
+      }
+    },
+    "notes": { "type": "string" },
+
+    "_intelligence_note": "以下字段仅对应 intelligence 功能 enabled 时写:",
+    "salary_gap": { "type": "number", "description": "期望下限−base_max(K),薪资框架(§11.3)" },
+    "scarcity_score": { "type": "number", "description": "0-10 纯技能稀缺度" },
+    "recommend_salary_delta": { "type": "number", "description": "建议加薪 K" },
+    "salary_flexible_tier": { "type": ["string", "null"], "description": "A*_salary_sensitive | null" },
+    "approved_ceiling": { "type": ["number", "null"], "description": "用户授权的破格上限;未授权=null" },
+    "last_touched_date": { "type": "string", "description": "防 24h 重复触达(全局去重 §7f)" },
+    "touched_jobs": { "type": "array", "items": { "type": "string" }, "description": "多岗共享账本:该人被哪些岗触达过" },
+    "status_global": { "type": "string", "description": "跨岗全局状态(多策略共享账本用)" }
+  }
+}

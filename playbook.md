@@ -86,6 +86,7 @@
 
 ```
 Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
+  · **跑前校验**:`python3 validate.py strategies/<name>/` —— 过了再跑,把"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range"这类配置错挡在早期(schema 见 schemas/,校验器不依赖 jsonschema)
   · 登录:eval .user-name 有值(⚠ 浏览器 id 用你自己的,SKILL.md §用前必做)
   · 每日打招呼额度:进 /web/chat/data-recruit,读该页 iframe.innerText 的「沟通 X/200」→ 剩余=200−X;剩余<~10 就收/停,别撞上限触软风控
   · 畅聊卡余量:搜索结果详情右侧「畅聊卡 剩余次数 xN」或按钮「搜索畅聊卡(3/N)」的 N;开聊=3卡/次,预算按 3/开聊 折算
@@ -112,6 +113,7 @@ Step 3  全局去重              [§6 / operation-map §7f]
   · **① 接口内建标(推荐通道首选)**:`geekList[].haveChatted==1` 或 `isFriend==1` → 已接触,直接 skip、别再触达(Boss 官方口径,最准)。
   · **② 账本交叉比对**:接口没给 haveChatted 的人(搜索打码/inbound),用去重键 `(name或打码名前缀)+最近公司+期望` 比对 ledger 里已触达状态的人;相似即判重复,打码名↔真名标 `possible_dup` 人工确认,不静默双跑(省额度/卡)。
   · **③ 防重复触达**:同一人 24h 内已触达就跳过(ledger `last_touched_date`)——重复 pitch 是风控 silent killer。
+  · **④ 跨岗去重(若开 shared_ledger)**:查全局 `touched_jobs`,同一人被任一岗 24h 内触达过 → 本岗 skip/降优先级;C/拒 但命中本岗 rubric 的转"交叉岗位发现"(§12)。
 
 Step 4  LLM 打分              [§4]
 
@@ -121,6 +123,7 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
     从 `zpData.geeks[]`(打码人)逐页拉到 `hasMore=false`。**接口直接传干净 keywords+筛选,免掉了 DOM 路径"清默认预选"那一套坑**;关键词矩阵在 keywords 里逐组轮换。
   · **DOM 兜底**:接口异常才降级到 §2B 的 DOM 搜索(那时才需清默认预选 + searchFrame 读结果)。
   · 去重:`geeks.json` 的 `friendRelationStatus`/`geekCallStatus` 命中即已联系过,skip(§7f)。
+  · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费四信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);≥门槛再进触达。
   · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要PII)→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊仍走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5]
@@ -277,3 +280,24 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
   - `< 7.5` → 仍封顶 B,报告"超带 {gap}K 但稀缺度仅 {score}/10,不自动争取"。
 - **拍板门(红线)**:`A*_salary_sensitive` **只报告零自动触达**;`break_glass_mode=manual` 时用户勾同意 + 写 `approved_ceiling` → **下一轮**才落定 A\* 进触达(并复用 §11.1 定制语通道:"…考虑您的背景,薪资可谈至 X…")。改薪资策略/破格承诺永远用户拍板。
 - 例(某13年纯血ASR候选人(示例),13年纯血ASR,期望超带30K):scarcity 8.5 ≥ 7.5 → 破格候选,"建议加薪至 57.5K(弹性上限)或 60K(期望下限),需授权"。
+
+### 11.4 掩码候选人花卡前质量预判(card_prescreen)— 挂在搜索通道触达前(默认开,只省钱不外发)
+搜索畅聊卡开聊 = **3卡/次 + 捆绑索要 PII**,而搜索结果是打码人、信号纯度低(实测有滥竽充数,如"22年经验投ASR的后端")。花卡前先用**接口免费拿到的四信号**(`geekCard` 里的 公司/城市/学历/年龄 + `friendRelationStatus`)打一个"质量分",别看到打码 A 就冲动开卡。
+- **质量分(0-10,粗判是否值得花卡,不是最终 rubric)**:公司对口/知名 +2、城市命中 hard_filters +2、学历达标 +1.5、经验在 3-10 区间 +1.5、优势文案含岗位核心词 +2、`friendRelationStatus`=已联系 → 直接 0(去重)。
+- **门槛**(strategy 可配 `intelligence.card_prescreen.min_score`,默认 6):≥6 建议开卡;3-6 报告里列"待定,人工看要不要花卡";<3 不建议开、不进 budget。
+- 这一步**纯读接口 + 算分,零外发、零红线**,是把"3卡/次"这笔真金白银用在刀刃上。实测能减 20-30% 无效卡。
+- 默认 `enabled: true`(它只会**减少**花卡,越保护越好;要全量开卡可关)。
+
+---
+
+## 12. 多岗/多策略 共享账本(可选,团队/多岗持续招聘用)
+
+单岗单策略时 ledger 各管各的;但**同一批候选人常横跨多个岗**(团队候选池重叠 30-50%),各管各的会导致**同一人被 A 岗、B 岗分别打招呼**——既浪费额度,又是 24h 重复触达的风控隐患。开启共享账本后:
+
+- **一个共享 ledger**(如 `strategies/_shared/ledger.jsonl`),多策略都往里写,候选人对象加:
+  - `touched_jobs[]`:该人被哪些岗触达过(`[{job, status, date}]`);
+  - `status_global`:跨岗最新状态(如"A岗已拒/B岗沟通中")。
+- **去重升级(§3 Step 3)**:触达前不只查本策略,查**全局** `touched_jobs` —— 同一人 24h 内已被任一岗触达 → 本岗 skip 或降优先级,别重复 pitch。
+- **交叉岗位发现(报告新增)**:A 岗打分 C/拒 的人,若技能命中 B 岗 rubric → 报告【交叉岗位发现】"某某 A岗超带但对口你的 B岗,建议转推"。把"一次评估"复用到多个岗,是多岗招聘的增量。
+- **落地**:strategy.yaml 加 `shared_ledger: strategies/_shared/ledger.jsonl`(不设=各用各的);id 用 §3 已有的稳定去重键跨策略对齐(打码名↔真名仍标 possible_dup)。
+- 现阶段(单次+单岗)非必需;做团队/多岗持续招聘或阶段三心跳时再开。
