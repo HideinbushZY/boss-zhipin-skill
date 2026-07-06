@@ -48,7 +48,7 @@
 
 1. 把 `boss-zhipin/` 整个文件夹放进你的 skills 目录(如 `~/.claude/skills/boss-zhipin/`),或直接让 agent 读 `SKILL.md` 入口。
 2. **换浏览器 id**:`browser-act browser list` 查你自己的 chrome-direct id,**替换 operation-map 全文的 `<YOUR_BROWSER_ID>` 占位符**。若还没有 chrome-direct 浏览器,`browser-act get-skills advanced` 按引导建。
-3. **确认登录**:`browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回你的招聘者姓名。
+3. **确认登录**:先开会话——`browser-act --session <名> browser open <你的浏览器id> https://www.zhipin.com/web/chat/index --headed`;再 `browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回你的招聘者姓名(Boss 登录本身要手机扫码,只能人来做)。
 
 ## 怎么用(两种触发)
 
