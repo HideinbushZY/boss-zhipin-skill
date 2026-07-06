@@ -48,6 +48,9 @@
 **#7 抽象浏览器交互层(IBrowserDriver)** · `L / 低` · ⛔ **暂不做**
 这条假设有个"代码层"可抽象,但现实是 agent 直接调 browser-act CLI、没有那层。工作量 L、收益低,为"以后可能换 Playwright"投这么多不划算。真要换后端那天再说。
 
+**#18 后端可替代性调研** · `S / 中` · ✅ **已做(2026-07-06)**
+真机验证了 Playwright 扩展 / chrome-devtools-mcp / claude-in-chrome 等免费开源替代:能力对等、绕开 Chrome 136+ 端口封锁,但装配摩擦不比 browser-act 低。能力契约 + 动词映射 + 实测坑落进 [`BACKENDS.md`](BACKENDS.md)。要换后端照它走。
+
 ---
 
 ## 【功能 / 产品层面】—— "从会点按钮到懂招聘"

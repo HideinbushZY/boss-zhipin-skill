@@ -40,7 +40,7 @@
 ## 用前提(prerequisites)
 
 1. **browser-act CLI**(BrowserAct 家的浏览器自动化 CLI):`uv tool install browser-act-cli`,并配好 API key。skill 靠它接管你本机已登录的真实 Chrome。
-   - 也可换成任何"能接管已登录 Chrome、能读 DOM + 真实点击"的等价工具;文中命令是 browser-act 语法,选择器/流程是通用的。
+   - 也可换成任何"能接管已登录 Chrome、能读 DOM + 真实点击"的等价工具;文中命令是 browser-act 语法,选择器/流程是通用的。**免费/开源替代(Playwright 扩展、claude-in-chrome、chrome-devtools-mcp 等)的实测对比、能力契约、动词映射见 [`BACKENDS.md`](BACKENDS.md)**——诚实结论:能力对等、能去掉 API-key 依赖,但装配摩擦不比 browser-act 低。
 2. **一个已登录的 Boss直聘招聘者账号**,通过 browser-act 的 **chrome-direct**(接管本机 Chrome)访问。企业招聘者身份(能发职位/看推荐牛人/搜索牛人)。
 3. Claude(或同类)agent 作为大脑跑 playbook 的判断/打分。
 
