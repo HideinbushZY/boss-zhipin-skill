@@ -43,7 +43,7 @@
 4. **关键词矩阵**:3-5 组,每组=一个概念簇(2-4 个近义/同类词),组间轮换(每轮换一组扩覆盖),组内是"或"关系的替代词。从 JD 技能词 + 能力描述的同义/上下位展开。
 5. **目标公司不重复计分**:target_companies 只经 §4 company_bonus 加分;**不要**再塞进 rubric.nice(否则同一事实双重加分)。
 6. **reject 不臆造**:用户没给排除条件就留空;只在 city 是硬条件时自动加"期望城市完全不符且不接受 relocate"。别替用户发明淘汰规则。
-7. **chat_cards 默认随授权**:用户全局授权过畅聊卡→新策略默认 `chat_cards: 4`;没授权过→默认 0。
+7. **chat_cards 默认随授权 + 🔴PII捆绑机检闸**:用户全局授权过畅聊卡→新策略默认 `chat_cards: 4`;没授权过→默认 0。**"授权过"的机检定义 = `budget.authorize_card_pii_bundle: true`**(不是靠 agent 记忆判断)。**`chat_cards>0` 却没设这个 true → validate.py 直接报错拦下**;因为开聊会自动索要简历/微信/电话(PII 捆绑),必须用户显式知情授权,不能靠文档纪律。
 8. **合格(qualified)定义**:默认 `qualified_tiers: [A]`(A 档=达标且现在可触达)。`target_qualified` 用户未明说时**默认 10**;A 档累计达 target_qualified 即这个策略够了。`A*`(破格)不计入默认合格数,除非策略显式纳入(§4)。
 
 ---
@@ -124,7 +124,7 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
   · **DOM 兜底**:接口异常才降级到 §2B 的 DOM 搜索(那时才需清默认预选 + searchFrame 读结果)。
   · 去重:`geeks.json` 的 `friendRelationStatus`/`geekCallStatus` 命中即已联系过,skip(§7f)。
   · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费四信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);≥门槛再进触达。
-  · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要PII)→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊仍走 UI(有确认框/境外提示门)。
+  · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5]
   · 优先免费推荐通道打招呼;搜索来的按 budget.chat_cards 逐张记账,超停
@@ -244,7 +244,6 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动,但操作本身待文档化)。
 - **接口层**:推荐 `rec/geek/list` + 搜索 `geeks.json` 已作主路径(operation-map §7e);会话/消息=WebSocket 无干净 REST,回执类走 DOM 漏斗或接口 haveChatted/friendRelationStatus。
 - **浏览器 id 非通用**:命令里用 `<YOUR_BROWSER_ID>` 占位,每次先 `browser-act browser list` 换成自己的。
-- **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动)。
 
 ---
 

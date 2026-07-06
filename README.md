@@ -22,7 +22,7 @@
 
 **Safety.** Hard red lines that never auto-fire (report only): swap phone / swap WeChat / schedule interview / publish·close·delete jobs / report·bulk-reject. Outreach and paid actions (chat-cards) are gated by the strategy's `touch_policy` / `budget`. Rate-limit and back off on any risk-control signal.
 
-**Maturity (honest).** Battle-tested over multiple live rounds on a real account; rated **functional** (reliable at the operation layer) — **not yet an "expert"**: it lacks recruiting-operator instincts (message personalization, timing, salary-tradeoff judgment, cross-round global dedup). See "现状与已知局限" below.
+**Maturity (honest).** A **qualified single-job sourcing engine** — the core recommend-channel loop (find→score→greet→dedup→receipt-scan→report) is battle-tested over 7 real-account rounds. Boundaries, on purpose: the loop **ends at "résumé received"**; **换电话/微信 is a permanent red line, never auto** (the paid-search "开聊" bundles a platform request for résumé/WeChat/phone, so `chat_cards>0` requires an explicit `authorize_card_pii_bundle: true`, enforced by `validate.py`); **约面 is untested** (red line). The operator-intuition layer (custom greetings / feedback loop / salary-flex / card prescreen) is implemented and its **logic validated on real data**, but **not yet validated with a real outbound send**. It is a sourcing engine for one recruiter — **not a complete recruiting platform** (no interview/offer, no heartbeat, single-job). See "现状与已知局限" below.
 
 ---
 

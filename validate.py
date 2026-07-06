@@ -77,6 +77,10 @@ def validate_strategy(path):
         for k in ("greets_per_day", "chat_cards"):
             if k in b and not isinstance(b[k], int):
                 err(f"strategy.yaml: `budget.{k}` 应是整数")
+        # 🔴 畅聊卡 PII 捆绑同意闸:chat_cards>0 必须显式 authorize_card_pii_bundle: true
+        if isinstance(b.get("chat_cards"), int) and b["chat_cards"] > 0 and b.get("authorize_card_pii_bundle") is not True:
+            err("strategy.yaml: `budget.chat_cards`>0 必须同时设 `budget.authorize_card_pii_bundle: true` —— "
+                "开聊会自动索要简历/微信/电话(PII 捆绑,碰红线),用户须显式知情授权;不授权就把 chat_cards 设 0")
         bsr = b.get("base_salary_range")
         if bsr is not None and not (isinstance(bsr, list) and len(bsr) == 2 and all(isinstance(x, (int, float)) for x in bsr)):
             err("strategy.yaml: `budget.base_salary_range` 应是 [min,max] 两个数(K)")
