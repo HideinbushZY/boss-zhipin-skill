@@ -30,9 +30,10 @@ metadata:
 2. **换成你自己的浏览器 id**:`browser-act browser list` 查你的 chrome-direct 浏览器 id,**替换 operation-map 全文的 `<YOUR_BROWSER_ID>` 占位符**(原作者机器上的实际 id 是 `<YOUR_BROWSER_ID>`,不通用)。若还没有 chrome-direct 浏览器,先 `browser-act get-skills advanced` 按引导创建。
 3. **确认登录**:`browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回招聘者姓名。
 
-## 三条操作铁律(最容易踩错,踩了就失败/返工)
+## 四条操作铁律(最容易踩错,踩了就失败/返工/发错人)
 
 - **读用 eval,点击/输入用 browser-act 索引**:`eval "...contentDocument..."` 只用来**读** DOM(同源,比截图快一个量级);**点击/输入必须走 `state` → 取 `[索引]` → `click <索引>` / `input <索引>`**(真实手势)。eval 的 `element.click()` 往往打不开详情弹层/模态框。文中 CSS 选择器只是帮你在 state 里认元素,不是让你 querySelector 后 eval-click。
+- **发消息前必核收件人**:会话列表是筛选页签作用域的(切页签后目标可能不在列表,eval 找人会静默失败,当前会话停在上一个人)。发送前 `eval` 读聊天区头部 `.name-container .name-box` **必须等于目标姓名**,内容核验≠收件人核验——真实踩过把 A 的消息发给 B(operation-map §7c 三验)。
 - **聊天页(`/web/chat/index`)冷加载直达 URL 会卡死在"加载中"**,必须从**左菜单点「沟通」进入**(应用内路由)才正常。重启 Chrome 后尤其注意。
 - **搜索页(`/web/chat/search`)打开时有默认预选**(职位 + 城市 + 热门词关键词,并自动出"根据热门词…"结果)。做干净的主动搜索前**必须先清空这些默认**,否则结果被残留的默认职位/城市污染,搜出不想要的人。
 

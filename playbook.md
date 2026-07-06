@@ -131,6 +131,7 @@ Step 6  触达(按 touch_policy)  [§5]
   · 开聊前看"同事沟通进度",不重复 pitch
   · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板
   · 每个外发动作:写账本 + 计当日额度 + 卡记账;动作间留间隔
+  · 🔴 会话内发消息必过"三验":①收件人(聊天头部 .name-container .name-box = 目标名)②内容(编辑框=批准稿)③送达回读(线程仍是目标+末条气泡=刚发内容)——缺一不发(operation-map §7c,真实误发事故换来的)
 
 Step 6.5 反馈评估(仅 intelligence.feedback.enabled)  [§11.2]
   · 聚合当日 actions → 写 daily_stats,算回复率/已读率,对比 baseline
