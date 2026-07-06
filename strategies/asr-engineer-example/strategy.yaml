@@ -1,0 +1,48 @@
+# 策略:ASR 算法工程师寻访(示例,由已发布的 ASR 岗解析而来)
+name: asr-engineer
+mode: once                       # 现阶段:单次 + 手动触发
+linked_job: 语音识别(ASR)算法工程师   # 已发布的在线职位,推荐通道按它匹配
+
+hard_filters:
+  city: 深圳                      # ⚠ 必须显式!搜索页先清默认预选再设此城市
+  degree: 本科及以上
+  experience: 3-10年
+
+keywords:                        # 关键词矩阵,搜索通道每轮轮换一组
+  - [语音识别, ASR, 语音算法]
+  - [会议转写, 实时字幕, 说话人分离]
+  - [FunASR, WeNet, Kaldi, ESPnet]
+  - [端侧语音, 端到端语音, 语音唤醒]
+
+target_companies: [循环智能, 思必驰, 云知声, 出门问问, 声智]   # 命中加分,非硬过滤
+
+rubric:
+  # 2026-07-04 调优:原 must 仅"识别"过窄。JD=会议转写系统,前端声学(远场/降噪/阵列/波束成形/说话人分离)
+  # 是会议转写的核心一半,应计入。放宽 must 为"语音/声学算法实战",识别 vs 前端在 nice 里区分权重。
+  must:                          # 缺一 → 封顶 B
+    - 3年以上语音/声学算法实战经验(ASR识别 或 会议前端声学 任一)
+    - 掌握端到端语音识别原理 或 阵列/声学信号处理(会议前端)
+  nice:                          # 命中加分
+    - 端侧模型部署/推理优化
+    - 会议转写 / 实时字幕 / 说话人分离 落地
+    - 熟悉 FunASR/WeNet/Kaldi/ESPnet
+    - 智能硬件 / 可穿戴音频 背景
+  reject:                        # 命中 → 直接 C 淘汰
+    - 纯学术无工程落地
+    - 仅语音合成(TTS)无识别
+    - 期望城市与深圳完全不符且不接受 relocate
+
+touch_policy: full               # 用户设定:A 档自动 打招呼 + 求简历
+                                 # (换电话/换微信/约面 仍不自动,只报告建议)
+
+budget:
+  greets_per_day: 15             # 当日打招呼上限(账号总额 200/天)
+  chat_cards: 12                 # 本策略可消耗搜索畅聊卡上限(每次"开聊"=消耗3张,≈4次开聊)。逐张记账、超停。用户没授权过畅聊卡就设 0。
+  detail_views_per_run: 40
+
+target_qualified: 10             # 攒够 10 个合格候选人算这个策略够了
+
+# 心跳字段(阶段三才启用,现留白)
+schedule:
+  cadence: null
+  stop_when: 合格满 target_qualified 或 30 天
