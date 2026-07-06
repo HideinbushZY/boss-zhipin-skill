@@ -19,6 +19,7 @@ except ImportError:
     sys.exit(2)
 
 TOUCH_POLICIES = {"report_first", "greet_A_capped", "greet_custom", "full"}
+SOURCES = {"recommend", "search", "interaction", "inbound"}
 TIERS = {"A", "B", "C", "unscored", "A*", "A*_salary_sensitive", None}
 STATUSES = {
     "found", "scored", "greeted", "chatted", "pending-reply", "replied",
@@ -45,6 +46,9 @@ def validate_strategy(path):
 
     if not s.get("name"):
         err("strategy.yaml: 缺 `name`(策略名,必填)")
+    mode = s.get("mode")
+    if mode is not None and mode != "once":
+        err(f"strategy.yaml: `mode`='{mode}' 暂不支持——现只有 once(单次+手动);心跳是阶段三,别提前配")
     if not s.get("linked_job"):
         warn("strategy.yaml: 缺 `linked_job` —— 推荐通道将不可用(§1.5 预检会禁用推荐、只走搜索);确认是有意的")
 
@@ -135,6 +139,9 @@ def validate_ledger(path):
             except json.JSONDecodeError as e:
                 err(f"ledger.jsonl 第 {i} 行不是合法 JSON: {e}")
                 continue
+            if not isinstance(c, dict):
+                err(f"ledger.jsonl 第 {i} 行应是 JSON 对象,实际是 {type(c).__name__}(半截写坏的行?)")
+                continue
             who = c.get("name") or c.get("id") or f"第{i}行"
             for k in ("id", "name", "status"):
                 if k not in c:
@@ -145,6 +152,11 @@ def validate_ledger(path):
                 warn(f"ledger [{who}]: status='{c['status']}' 不在已知状态机里({sorted(STATUSES)}) —— 拼错还是新状态?")
             if "score" in c and c["score"] is not None and not isinstance(c["score"], (int, float)):
                 err(f"ledger [{who}]: score 应是数字或 null")
+            src = c.get("source")
+            if src is not None and src not in SOURCES:
+                warn(f"ledger [{who}]: source='{src}' 不在已知来源里({sorted(SOURCES)})—— 拼错还是新通道?")
+            if "masked" in c and not isinstance(c["masked"], bool):
+                err(f"ledger [{who}]: masked 应是 true/false")
             acts = c.get("actions")
             if acts is not None:
                 if not isinstance(acts, list):
@@ -153,6 +165,8 @@ def validate_ledger(path):
                     for j, a in enumerate(acts):
                         if not isinstance(a, dict) or not {"t", "act"} <= set(a):
                             err(f"ledger [{who}]: actions[{j}] 应含至少 {{t, act}}")
+                        elif a.get("greeting_mode") is not None and a["greeting_mode"] not in {"custom", "default"}:
+                            warn(f"ledger [{who}]: actions[{j}].greeting_mode='{a['greeting_mode']}' 应是 custom/default(§11.1)")
             # §12 多岗共享账本字段(可选,但形状要对——跨岗去重靠它们)
             tj = c.get("touched_jobs")
             if tj is not None:
@@ -188,15 +202,20 @@ def main():
     else:
         warn(f"未找到 ledger.jsonl(首轮会自动建空,可忽略)")
 
-    # §12 共享账本:路径按 skill 根目录解析(strategies/<name>/ 的上两级),存在则一并校验
+    # §12 共享账本:路径按 skill 根目录解析(= validate.py 自身所在目录,与跑脚本的 cwd 无关),存在则一并校验
     sl = (s or {}).get("shared_ledger")
     if isinstance(sl, str):
-        root = os.path.dirname(os.path.dirname(os.path.abspath(d.rstrip("/"))))
-        slp = sl if os.path.isabs(sl) else os.path.join(root, sl)
-        if os.path.exists(slp):
-            validate_ledger(slp)
+        if not sl.strip():
+            warn("strategy.yaml: `shared_ledger` 是空字符串——要么删掉该键,要么给真实路径(§12)")
         else:
-            warn(f"shared_ledger 指向的 {sl} 尚不存在(首轮会自动建;先确认路径没拼错,§12)")
+            root = os.path.dirname(os.path.abspath(__file__))
+            slp = sl if os.path.isabs(sl) else os.path.join(root, sl)
+            if os.path.isdir(slp):
+                err(f"strategy.yaml: `shared_ledger` 指向的是目录不是文件:{sl}(应是 .jsonl 文件路径,§12)")
+            elif os.path.exists(slp):
+                validate_ledger(slp)
+            else:
+                warn(f"shared_ledger 指向的 {sl} 尚不存在(首轮会自动建;先确认路径没拼错,§12)")
 
     for w in warnings:
         print(f"⚠  {w}")

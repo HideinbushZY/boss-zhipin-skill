@@ -45,7 +45,7 @@
 2. 若 state 抓不到,用 `eval` 读 `contentDocument`(注意 iframe:推荐/搜索前默认视图在 `recommendFrame`,搜索结果在 `searchFrame`)确认元素是否改了类名/结构;
 3. 区分是**选择器变了**、还是**流程门槛变了**(如 求简历要候选人先回复才 enabled);
 4. 找到新选择器后,在 `operation-map.md` 对应条目更新,并注明"YYYY-MM-DD 实测";
-5. 若能抓到更稳的 **XHR 接口**,优先记接口(见 §7d),比选择器抗腐烂。
+5. 若能抓到更稳的 **XHR 接口**,优先记接口(见 §7e),比选择器抗腐烂。
 
 ## PR 约定
 

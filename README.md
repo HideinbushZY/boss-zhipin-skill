@@ -30,7 +30,7 @@
 
 | 文件 | 层 | 作用 |
 |---|---|---|
-| **SKILL.md** | 触发头 | 什么时候用、三条操作铁律、安全门(红线)。你的 agent 先读它。 |
+| **SKILL.md** | 触发头 | 什么时候用、四条操作铁律、安全门(红线)。你的 agent 先读它。 |
 | **operation-map.md** | 执行层 | 每个页面怎么点、全部实测选择器、踩坑速查、健康检查/扫回执/清默认等确切步骤。 |
 | **playbook.md** | 编排层 | 把策略解析成配置 → 找人[推荐/搜索/互动] → LLM 打分 A/B/C → 按档触达 → 落报告。 |
 | **strategies/asr-engineer-example/** | 示例 | 一个填好的策略样例:`strategy.yaml`(配置)+ `ledger.example.jsonl`(账本 schema)+ `reports/`(报告格式)。**均为脱敏示例数据,非真实候选人。** |
@@ -74,8 +74,8 @@
 
 **还差 / 待补**:
 - **约面(`.interview`)发起流程**未实测(红线不自动,但操作本身待文档化)。
-- **接口层(XHR)**只抓了推荐侧;做批量/长期自动化建议接接口作主路径、DOM 抓取降为 fallback(抗改版)。
-- **招聘运营直觉**基本没有:打招呼零个性化(系统模板)、无最佳时段、超带一刀切没有"稀缺该破格加薪"的两维权衡、无跨轮全局去重(24h 重复触达=风控隐患)、无当日回复率反馈环。**这是"会点按钮"和"懂招聘经营"的差距。**
+- **接口层(XHR)**:推荐/搜索两条读通道已接口化为主路径(operation-map §7e);会话/发消息走 WebSocket 无干净 REST,写路径刻意保留 UI(确认框/提示门=安全闸)。
+- **招聘运营直觉**已落地为可选智能层(定制招呼语/反馈环/薪资破格默认关、花卡预判默认开,playbook §11)+ 全局去重(operation-map §7f);仍缺:最佳触达时段、跨轮自动调参(反馈环只建议不自动改)、智能层整轮真机实测(逻辑已用真实数据验证、未真实外发)。
 - 页面改版后选择器会腐烂,需重新验证。
 
 **边界**:定位是"单次 + 单岗策略引擎"。不含:定时心跳持续运行、群发、offer/入职跟踪、与外部 ATS/HRIS 集成。
@@ -109,7 +109,7 @@ A: 跑前 `python3 validate.py strategies/<name>/`,会报"缺 rubric.must / touc
 A: chrome-direct **接管期间独占**你的 Chrome,你手动操作会打架。跑寻访时别同时手动操作同一个 Chrome;跑完 `browser-act session close <名>` 释放。
 
 **Q: 桥掉线报 `230404 Unknown error`?**
-A: browser-act 控制面/CDP 问题,不是账号封禁(`stealth-extract` 还能用就说明 cloud 没挂)。等 Chrome 完全就绪(AppleScript 能 count windows),再 `browser open <id> <url> --headed --allow-restart-chrome` 重试。详见 operation-map「桥恢复姿势」。
+A: browser-act 控制面/CDP 问题,不是账号封禁(`stealth-extract` 还能用就说明 cloud 没挂)。等 Chrome 完全就绪(AppleScript 能 count windows),再 `browser open <id> <url> --headed --allow-restart-chrome` 重试。详见 operation-map「桥掉线恢复姿势」。
 
 **Q: 智能层(定制招呼语 / 反馈环 / 薪资破格 / 花卡预判)怎么开?**
 A: 在 strategy.yaml 的 `intelligence:` 块改对应 `enabled`。**`card_prescreen` 默认就是开的**(只减花卡、零外发,越保护越好);另外三把 `feedback` / `custom_greetings` / `salary_leverage` 默认关,建议顺序 ①feedback → ②custom_greetings → ③salary_leverage 逐个翻 `true`。逻辑见 playbook §11。
