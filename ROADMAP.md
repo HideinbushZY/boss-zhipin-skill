@@ -10,7 +10,7 @@
 
 ## 🎯 如果只做 3 件事
 
-1. **接口层主路径 + 全局去重(#2 #3)** —— 一次基建同时解决"虚拟滚动索引退化 + Boss 改版选择器腐烂 + 24h 重复触达风控"三大致命伤。**从演示级到生产级的门槛,不做后面都是沙上建塔。**
+1. ~~接口层主路径 + 全局去重(#2 #3)~~ ✅ **推荐通道 + 去重已做(2026-07-06)** —— 推荐已走 `rec/geek/list` 接口(解决虚拟滚动退化)、去重用接口自带 `haveChatted`。剩搜索通道接口化(extraStr 较复杂)可后补。**基建这一步落地了,从演示级往生产级迈了关键一步。**
 2. **当日反馈环 + 定制打招呼语(#9 #8)** —— 最高性价比的"智能感":会看回复率调策略、会按背景写文案。用户第一次感到"它在思考",回复率数据翻倍。
 3. **参数化浏览器 ID + SAFETY.md + CONTRIBUTING.md(#1 #15 #16)** —— 开源采纳最小三件套:setup 不卡壳、风险讲清楚、社区知道怎么帮修选择器。没这三样,再好的引擎也只有作者一个人在用。
 
@@ -23,11 +23,12 @@
 **#1 参数化浏览器 ID + `verify-setup` 自检** · `S / 高`
 全文剩余硬编码 `direct_local_...` 换 `<YOUR_BROWSER_ID>`;SKILL.md「用前必做」补一段复制即跑的 Bash,校验 浏览器 ID / 登录 / 每日额度,输出 pass/fail。跨机交接第一个卡点。
 
-**#2 接口层升为搜索/推荐主路径,DOM 降 fallback** · `M / 高`
-现只抓了推荐侧 XHR(operation-map §7d)。补齐搜索结果 XHR + 会话列表 XHR,建 `lib/api-client`,playbook Step 1 改"先接口、401/网络错才降 DOM",DOM 只留"开详情弹 + 点按钮"。一举三得:虚拟滚动索引退化(>15 卡、state 仅索引 ~56 元素)自动消失、Boss 改版接口稳度 >> DOM、接口可 mock 离线单测。
+**#2 接口层升为推荐主路径,DOM 降 fallback** · `M / 高` · ✅ **推荐通道已做(2026-07-06)**
+推荐通道已接口化:`GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&{filters}` 返回 `geekList[]`(15/页)+`hasMore`,`geekCard` 里 name/经验/学历/优势/期望/教育/工作经历一应俱全 → **虚拟滚动索引退化问题消失、可精确翻页不漏人**;playbook Step 1 已改"接口主路径、401/错误降 DOM,DOM 只用于开详情+点按钮"。见 operation-map §7e。
+> 剩余(未做):**搜索通道** `searchRecommend.json` 已定位但 `extraStr` 编码 + 默认预选污染较复杂,清干净参数后可接;**会话/消息列表 = WebSocket**,无干净 REST(`message/list/box` 只是通知盒摘要),回执类只能走 DOM 漏斗。
 
-**#3 全局去重(触达前查会话列表)** · `S–M / 高`
-调 `GET /wapi/zpitem/web/chat/message/list/box` 拉全会话,name + company 比对 ledger 里 greeted/chatted,命中标 `already_touched_today` 并 skip;独立 `dedup` 逻辑定义打码名 vs 真名匹配阈值(Levenshtein > 0.8 + 加权);ledger 加 `last_touched_date`。堵 24h 重复打招呼这个风控 + 雇主品牌的 silent killer。
+**#3 全局去重** · `S–M / 高` · ✅ **已做(2026-07-06)**
+比预期更好:推荐接口每个候选人自带 **`haveChatted`/`isFriend`**(Boss 官方"已聊过/已好友"标)→ `haveChatted==1` 直接 skip,最准;接口没给的(搜索打码/inbound)走账本交叉比对(`name+公司+期望` 键,打码名↔真名标 `possible_dup`);加 `last_touched_date` 防 24h 重复触达。见 operation-map §7f + playbook Step 3。堵住了重复打招呼这个风控 silent killer。
 
 ### P1
 

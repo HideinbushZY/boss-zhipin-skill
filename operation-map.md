@@ -2,7 +2,7 @@
 
 > 目的:让 agent 照此丝滑操作 Boss 招聘者工作台,不必每次重新探索页面。
 > 测绘方式:2026-07-03 用 browser-act(chrome-direct 接管真实 Chrome,账号=你自己的招聘者账号)逐板块实操验证。
-> 执行工具:`browser-act --session <名> ...`;浏览器 id 全文用占位符 `<YOUR_BROWSER_ID>`。**换机/换人先跑 `browser-act browser list` 查你自己的 chrome-direct id,替换全文 `<YOUR_BROWSER_ID>`**(原作者机器上是 `direct_local_YOUR_BROWSER_ID`/名 my-chrome,不通用)。
+> 执行工具:`browser-act --session <名> ...`;浏览器 id 全文用占位符 `<YOUR_BROWSER_ID>`。**换机/换人先跑 `browser-act browser list` 查你自己的 chrome-direct id,替换全文 `<YOUR_BROWSER_ID>`**(原作者机器上是 `<YOUR_BROWSER_ID>`/名 my-chrome,不通用)。
 > **本文所有 URL / 选择器 / 流程均为实测,非推演。** 页面改版后需重新验证。
 > **提速实测(2026-07-04)**:同一任务「搜关键词→打开排名第一候选人简历详情」,盲探(最初)≈15 次浏览器调用(约 10 次是探索/走错路),照本文 **5 次、零探索、一次成功**——约 3× 更少调用,消除整个探索阶段。
 
@@ -221,11 +221,37 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **工具箱**(`/web/chat/toolbox_v2`,iframe):牛人管理 / **自定义打招呼语** / 已读筛选。
 - **自定义打招呼语**(`/web/chat/set/greeting`,账号设置内,iframe):开关(默认开);**通用** + **按职位设置招呼语**两级;风格预设 常规/幽默/礼貌/诚恳/**自定义**;占位符 {职位}{姓名}{公司};默认模板"你好,我司急聘{职位}一职,请问考虑么?"。→ 这就是推荐/搜索打招呼发的开场白来源;**措辞属品牌语音,改动应由用户定**。
 - **换电话确认框**:「确定与对方交换手机吗?」(取消/确定);**换微信确认框**:「确定与对方交换微信吗?」(取消/确定)——与求简历同款二次确认。均属外发 PII 请求,发前须确认。
-- **XHR 接口层(为接口化备料)**:
-  - 推荐候选人列表:`GET /wapi/zpjob/rec/geek/list?jobId={encryptJobId}&page=N&age=..&degree=..&experience=..&salary=..&gender=..&activation=..&school=..&major=..&intention=..&switchJobFrequency=..&recentNotView=..&exchangeResumeWithColleague=..&cardType=0`(返回候选人 JSON)
-  - 推荐筛选项:`GET /wapi/zpblock/recommend/filters?jobId={encryptJobId}&source=1`
-  - 会话列表:`GET /wapi/zpitem/web/chat/message/list/box`
-  - 职位 encryptJobId 从 `recommend/ai/preference/entrance?encryptJobId=` 等处可得。响应体含 PII,接口化时注意本地处理。
+## 7e. ✅ 接口层(2026-07-06 真机抓包实测,推荐通道可作主路径)
+
+**怎么调**:同源 sync XHR,借页面已有 cookie,eval 里跑(异步 fetch eval 可能返回前没 resolve,用同步 XHR 最稳):
+```js
+(() => { const x=new XMLHttpRequest(); x.open('GET', URL, false); x.send(); return JSON.parse(x.responseText); })()
+```
+
+### 🟢 推荐候选人列表(主路径,解决虚拟滚动索引退化)
+`GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&age=16,-1&degree=0&experience=0&salary=0&keyword1=-1&gender=0&major=0&intention=0&activation=0&cardType=0`
+- **响应**:`zpData.geekList[]`(**每页 15 人**)+ `zpData.hasMore`(还有没有下一页)→ **翻页拉 `page=1,2,3…` 直到 hasMore=false,拿全量、无虚拟滚动、无 state 索引退化**。
+- **每个候选人字段**(关键):
+  - **`haveChatted`**(0/1)、**`isFriend`**(0/1)= **Boss 自带的"已聊过/已是好友"去重标**(见 §7f 去重);
+  - `searchChatCardCostCount` = 触达要几张畅聊卡(推荐通道通常 0=免费打招呼);
+  - `hasAttachmentResume`、`recommendReason`;
+  - `geekCard{ geekName, geekGender, geekWorkYear(经验年), geekDegree, freshGraduate(应届), geekDesc(优势自述), lowSalary/highSalary/salary(期望薪资), expectPositionName(期望职位), expectLocationName(期望城市), ageDesc, geekEdus(教育), geekWorks(工作经历), encGeekId, securityId(动作 token,打招呼/开聊要用) }` —— **就是 DOM 卡片上的全部信息,但是干净 JSON**。
+- **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(如 `<encJobId>`),账号/职位相关,别硬编码。
+- **筛选参数**:age/degree/experience/salary 等直接对应 hard_filters(格式如 `age=16,-1` 区间、`degree/experience/salary=0` 表不限),接口筛比页面点更精确。
+
+### 🟡 搜索通道 `GET /wapi/zpitem/web/boss/search/searchRecommend.json?jobId={enc}&encryptJobId={enc}&page=N&extraStr={...}`
+`extraStr` 里带 `quickFilter.filterList`(逗号分隔的关键词/筛选词)——**⚠ 默认预选的"热门词"污染就藏在这里**(实测默认带 985院校/agent/大模型/意图识别… 一堆),接口化搜索前要把 extraStr 换成自己的干净筛选。相关端点:`getPositionKeyWords`、`zpjob/job/search/job/list`。**搜索接口比推荐略复杂(extraStr 编码 + 默认污染),优先先把推荐通道接口化。**
+
+### 🔴 会话/消息列表 = WebSocket(没有干净 REST)
+- `GET /wapi/zpitem/web/chat/message/list/box` 实测只是**通知盒摘要**(单对象 showBox/title/messageInfo),**不是会话列表**。
+- 真正的会话列表和消息走 **WebSocket 实时推送**,没有可直接 GET 的 REST 端点 → **会话/回执类去重只能读 DOM 漏斗(§7c 扫回执),或用推荐接口的 `haveChatted` 标(更省事)**。
+
+## 7f. ✅ 全局去重(2026-07-06,防 24h 重复触达风控)
+触达前判"这人是不是已经接触过",两个来源:
+1. **接口内建标(推荐通道首选)**:`rec/geek/list` 里 `haveChatted==1` 或 `isFriend==1` → 已接触,**直接 skip、别再打招呼**。这是 Boss 官方口径,最准。
+2. **账本交叉比对(跨通道/搜索/inbound)**:对接口没给 haveChatted 的人(如搜索命中的打码人),用 ledger 里 `status∈{greeted,chatted,replied,resume_received,contact_exchanged}` 的人做匹配:键=`(geekName 或打码名前缀) + 最近公司 + 期望`,相似即判重复(打码名↔真名可能同一人,命中标 `possible_dup` 人工确认)。
+3. ledger 建议加 `last_touched_date` 字段,配合"同一人 24h 内不重复触达"的软规则。
+**为什么要紧**:同一候选人短时被多次打招呼(跨策略/跨同事)极易触发爬虫风控,还砸雇主品牌——这是 silent killer。
 - **实战侧记**:候选人A(示例)(初判弱匹配)收到求简历后**发来附件简历**并回复"做过安卓语音项目 asr/vad/tts/kws 都熟悉"——实际比履历显示的更对口,说明**对话探询能挖出履历外的匹配信息**,是筛选环节的价值点。
 
 ## 8. 进度清单
@@ -240,6 +266,8 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - [x] 换电话 /换微信 确认框(「确定与对方交换手机/微信吗?」,已验证结构未实发)
 - [x] 账号权益 / 招聘数据 / 工具箱 / 自定义打招呼语(只读+配置项已记录)
 - [x] XHR 接口层核心端点(rec/geek/list 等)
+- [x] **推荐通道接口主路径**(rec/geek/list 全参数+响应结构+haveChatted去重标+hasMore翻页,2026-07-06 实测,见 §7e)
+- [x] **全局去重**(接口 haveChatted/isFriend + 账本交叉比对,2026-07-06,见 §7f)
 - [x] **搜索页默认预选清除**三件套选择器(关键词/职位/城市,2026-07-05,见 §2B)
 - [x] **健康检查读法**(每日打招呼额度 X/200 + 畅聊卡余量,2026-07-05,见 §7d)
 - [x] **扫回执机制**(沟通中 tab + status 信号 → full 档异步求简历闭环,2026-07-05,见 §7c)
@@ -247,8 +275,9 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 **待补**:
 - [ ] 会话内**约面**(`.interview`「约面试」)发起流程 —— 一级第④项,唯一没跑的核心动作(用户暂缓;红线不自动但操作待文档化)
 - [ ] 自定义打招呼语的**实际设置**(功能已记录,措辞待用户定)—— 是"招聘运营深度"里分档定制招呼语的落地前提
-- [ ] 搜索/会话消息发送的 XHR 端点(仅抓了推荐侧)——接口化寻访主路径,抗改版
-- [ ] 招聘运营直觉(薪资破格建议 / 当日回复率反馈环 / 跨轮全局去重防重复触达)—— 见 REVIEW-20260704.md 第5项
+- [ ] **搜索通道接口化**(searchRecommend.json 已定位,但 extraStr 编码 + 默认污染较复杂,清干净参数后可接;见 §7e🟡)
+- [ ] 会话/消息发送 = WebSocket,无干净 REST(§7e🔴);回执类去重走 DOM 漏斗或推荐接口 haveChatted
+- [ ] 招聘运营直觉(定制招呼语 / 薪资破格建议 / 当日回复率反馈环)—— 见 ROADMAP.md #8-#10
 
 ---
 
