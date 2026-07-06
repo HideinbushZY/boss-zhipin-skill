@@ -4,6 +4,26 @@
 
 一个可复用的 Claude skill:让 agent 像 **Boss直聘招聘者侧的熟手** 一样操作工作台,并把一段"搜索策略"跑成 `解析→找人→打分→触达→报告` 的自动寻访管线。页面地图和选择器全部真机实测过。
 
+`License: MIT` · `Platform: Boss直聘 (zhipin.com), recruiter side` · `Driver: browser-act (chrome-direct)`
+
+---
+
+## English (TL;DR)
+
+**What it is.** A reusable Claude/agent skill that operates the **recruiter side** of Boss直聘 (China's largest recruiting platform). Two modes: (A) point-ops — search candidates, read résumés, greet, reply, request résumé, post/manage jobs; (B) strategy sourcing — give it a JD / target companies / required skills and it runs a pipeline: **parse → find (recommend + paid search) → LLM-score (A/B/C) → reach out (per policy) → report**, with a local JSONL ledger for incremental, deduped runs.
+
+**Structure (3 layers).** `SKILL.md` (triggers + iron rules + safety gates) → `operation-map.md` (execution layer: exact page selectors, all live-verified) → `playbook.md` (orchestration: the sourcing pipeline & scoring rubric). Example strategy under `strategies/asr-engineer-example/` (synthetic data).
+
+**Prerequisites.** (1) the [browser-act](https://github.com/browser-act/skills) CLI (or any equivalent that can take over a logged-in Chrome via CDP, read the DOM, and do real clicks); (2) a logged-in Boss直聘 **recruiter** account, accessed via browser-act's `chrome-direct`; (3) a Claude-class agent as the brain.
+
+**Setup (3 steps).** Drop `boss-zhipin/` into your skills dir → replace the `<YOUR_BROWSER_ID>` placeholder (run `browser-act browser list`) → verify login. See the Chinese sections below for the full operational detail.
+
+> ⚠ **The operational docs are in Chinese on purpose** — Boss直聘's UI is Chinese and the selectors match Chinese on-page text, so the how-to-click content stays in Chinese. This English section is for discoverability; the working knowledge is in `SKILL.md` / `operation-map.md` / `playbook.md`.
+
+**Safety.** Hard red lines that never auto-fire (report only): swap phone / swap WeChat / schedule interview / publish·close·delete jobs / report·bulk-reject. Outreach and paid actions (chat-cards) are gated by the strategy's `touch_policy` / `budget`. Rate-limit and back off on any risk-control signal.
+
+**Maturity (honest).** Battle-tested over multiple live rounds on a real account; rated **functional** (reliable at the operation layer) — **not yet an "expert"**: it lacks recruiting-operator instincts (message personalization, timing, salary-tradeoff judgment, cross-round global dedup). See "现状与已知局限" below.
+
 ---
 
 ## 这是什么 / 三层结构
@@ -65,3 +85,11 @@
 ## 隐私说明
 
 本包内示例策略的 `ledger.example.jsonl` 与 `reports/` **全部是虚构脱敏数据**;core 文档里的账号/公司/招聘者/地址/邮箱/真实候选人姓名均已抹除或换成占位符。真机跑出来的候选人数据请自己妥善保管、勿外发(涉及求职者个人信息)。
+
+仓库自带 `.gitignore`,已默认忽略真跑产生的 `ledger.jsonl` 与非示例的 `reports/*.md`(以及简历附件/截图)——**照它用就不会误把候选人 PII 提交上来**。
+
+---
+
+## License
+
+[MIT](./LICENSE) © 2026 HideinbushZY. 自由使用/修改/分发。按现状提供,不担保;操作真实招聘账号有风控风险,自行评估。

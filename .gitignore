@@ -1,0 +1,22 @@
+# ⚠ 隐私保护:真实运行数据含候选人个人信息(PII),不要提交到公开仓库。
+# 只保留 *.example 示例文件;真跑产生的 ledger.jsonl / reports 一律忽略。
+
+# 真实账本(示例文件名是 ledger.example.jsonl,不会被这条命中)
+strategies/**/ledger.jsonl
+
+# 真实报告(保留名字里带 example 的示例报告,忽略其余)
+strategies/**/reports/*.md
+!strategies/**/reports/*example*.md
+
+# 抓到的简历附件、截图等
+*.doc
+*.docx
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# 本地/系统杂物
+.DS_Store
+*.log
+scratchpad/
