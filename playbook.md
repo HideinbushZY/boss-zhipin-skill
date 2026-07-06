@@ -138,6 +138,7 @@ Step 6.5 反馈评估(仅 intelligence.feedback.enabled)  [§11.2]
   · 预算/词只出建议进报告,不自动改 yaml
 
 Step 7  写账本 + 报告          [§6 §7]
+  · 〔若 shared_ledger〕写本策略 ledger 的同时,同步共享账本:该人 touched_jobs 追加 {job,status,date}、刷新 status_global(§12 写入侧闭环——只读不写,下一个策略就查不到本轮触达,跨岗去重失效)
 ```
 
 ---
@@ -298,5 +299,6 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
   - `status_global`:跨岗最新状态(如"A岗已拒/B岗沟通中")。
 - **去重升级(§3 Step 3)**:触达前不只查本策略,查**全局** `touched_jobs` —— 同一人 24h 内已被任一岗触达 → 本岗 skip 或降优先级,别重复 pitch。
 - **交叉岗位发现(报告新增)**:A 岗打分 C/拒 的人,若技能命中 B 岗 rubric → 报告【交叉岗位发现】"某某 A岗超带但对口你的 B岗,建议转推"。把"一次评估"复用到多个岗,是多岗招聘的增量。
-- **落地**:strategy.yaml 加 `shared_ledger: strategies/_shared/ledger.jsonl`(不设=各用各的);id 用 §3 已有的稳定去重键跨策略对齐(打码名↔真名仍标 possible_dup)。
+- **落地**:strategy.yaml 加 `shared_ledger: strategies/_shared/ledger.jsonl`(不设=各用各的);id 用 §3 已有的稳定去重键跨策略对齐(打码名↔真名仍标 possible_dup)。**读写两侧都要接**:读侧=§3 Step 3 ④ 查全局 touched_jobs,写侧=§3 Step 7 触达后同步回写(validate.py 会校验 shared_ledger 路径与 touched_jobs/status_global 字段形状)。
+- **验收用例**(开启后跑一次):两个策略搜同一家公司的人 → 第二个策略对已触达者应 skip/降级,不重复打招呼。
 - 现阶段(单次+单岗)非必需;做团队/多岗持续招聘或阶段三心跳时再开。

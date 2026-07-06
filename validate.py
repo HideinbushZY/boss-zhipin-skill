@@ -38,10 +38,10 @@ def validate_strategy(path):
             s = yaml.safe_load(f)
         except yaml.YAMLError as e:
             err(f"strategy.yaml 不是合法 YAML: {e}")
-            return
+            return None
     if not isinstance(s, dict):
         err("strategy.yaml 顶层应是一个映射(键值对)")
-        return
+        return None
 
     if not s.get("name"):
         err("strategy.yaml: 缺 `name`(策略名,必填)")
@@ -92,6 +92,10 @@ def validate_strategy(path):
     if tq is not None and not isinstance(tq, int):
         err("strategy.yaml: `target_qualified` 应是整数")
 
+    sl = s.get("shared_ledger")
+    if sl is not None and not isinstance(sl, str):
+        err("strategy.yaml: `shared_ledger` 应是路径字符串(如 strategies/_shared/ledger.jsonl,§12 多岗共享账本)")
+
     intel = s.get("intelligence")
     if intel is not None:
         if not isinstance(intel, dict):
@@ -108,6 +112,7 @@ def validate_strategy(path):
             if isinstance(sl, dict) and sl.get("enabled") is True:
                 if not (isinstance(s.get("budget"), dict) and s["budget"].get("base_salary_range")):
                     err("strategy.yaml: 开了 salary_leverage 就必须给 `budget.base_salary_range`(破格框架的基准)")
+    return s
 
 
 def validate_ledger(path):
@@ -139,6 +144,18 @@ def validate_ledger(path):
                     for j, a in enumerate(acts):
                         if not isinstance(a, dict) or not {"t", "act"} <= set(a):
                             err(f"ledger [{who}]: actions[{j}] 应含至少 {{t, act}}")
+            # §12 多岗共享账本字段(可选,但形状要对——跨岗去重靠它们)
+            tj = c.get("touched_jobs")
+            if tj is not None:
+                if not isinstance(tj, list):
+                    err(f"ledger [{who}]: touched_jobs 应是列表([{{job,status,date}}],§12)")
+                else:
+                    for j, t in enumerate(tj):
+                        if not isinstance(t, dict) or not {"job", "status"} <= set(t):
+                            err(f"ledger [{who}]: touched_jobs[{j}] 应含至少 {{job, status}}(建议带 date,24h 去重靠它)")
+            sg = c.get("status_global")
+            if sg is not None and not isinstance(sg, str):
+                err(f"ledger [{who}]: status_global 应是字符串(跨岗全局状态,§12)")
 
 
 def main():
@@ -150,8 +167,9 @@ def main():
     lp = os.path.join(d, "ledger.jsonl")
     lpe = os.path.join(d, "ledger.example.jsonl")
 
+    s = None
     if os.path.exists(sp):
-        validate_strategy(sp)
+        s = validate_strategy(sp)
     else:
         err(f"找不到 {sp}")
     if os.path.exists(lp):
@@ -160,6 +178,16 @@ def main():
         validate_ledger(lpe)
     else:
         warn(f"未找到 ledger.jsonl(首轮会自动建空,可忽略)")
+
+    # §12 共享账本:路径按 skill 根目录解析(strategies/<name>/ 的上两级),存在则一并校验
+    sl = (s or {}).get("shared_ledger")
+    if isinstance(sl, str):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(d.rstrip("/"))))
+        slp = sl if os.path.isabs(sl) else os.path.join(root, sl)
+        if os.path.exists(slp):
+            validate_ledger(slp)
+        else:
+            warn(f"shared_ledger 指向的 {sl} 尚不存在(首轮会自动建;先确认路径没拼错,§12)")
 
     for w in warnings:
         print(f"⚠  {w}")

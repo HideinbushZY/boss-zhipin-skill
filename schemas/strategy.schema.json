@@ -57,6 +57,7 @@
       }
     },
     "target_qualified": { "type": "integer", "default": 10, "description": "攒够 N 个合格(A)即够" },
+    "shared_ledger": { "type": "string", "description": "多岗共享账本路径(如 strategies/_shared/ledger.jsonl,§12);不设=各策略各管各的。开启后读侧 §3 Step 3 ④ 查全局 touched_jobs、写侧 Step 7 同步回写" },
     "intelligence": {
       "type": "object",
       "description": "运营智能层(见 playbook §11):custom_greetings/feedback/salary_leverage 默认关,card_prescreen 默认开",
