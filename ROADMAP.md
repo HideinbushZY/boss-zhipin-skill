@@ -11,7 +11,7 @@
 ## 🎯 如果只做 3 件事
 
 1. ~~接口层主路径 + 全局去重(#2 #3)~~ ✅ **已做(2026-07-06)** —— 推荐(`rec/geek/list`)+ 搜索(`geeks.json`)双通道都走接口主路径(解决虚拟滚动退化、搜索还免掉了清默认坑),去重用接口自带 `haveChatted`/`friendRelationStatus`。**这道基建门槛跨过了——从演示级迈到生产级的关键一步。** 只剩会话列表是 WebSocket(无干净 REST,回执走 DOM 漏斗)。
-2. **当日反馈环 + 定制打招呼语(#9 #8)** —— 最高性价比的"智能感":会看回复率调策略、会按背景写文案。用户第一次感到"它在思考",回复率数据翻倍。
+2. ~~当日反馈环 + 定制打招呼语(#9 #8)~~ ✅ **三件运营智能层已实现(2026-07-06,playbook §11,默认关)** —— 定制招呼语 + 反馈环 + 薪资破格都落进 skill 了,开 `enabled` 即生效。这层是"智能感"的来源:会看回复率调策略、会按背景写文案、会给破格加薪建议。
 3. **参数化浏览器 ID + SAFETY.md + CONTRIBUTING.md(#1 #15 #16)** —— 开源采纳最小三件套:setup 不卡壳、风险讲清楚、社区知道怎么帮修选择器。没这三样,再好的引擎也只有作者一个人在用。
 
 ---
@@ -54,16 +54,15 @@
 
 > 共性痛点:strategy.yaml 全是死值,打招呼一律系统模板,agent 对市场/反馈/成本全盲。
 
-### P0
+### P0 — ✅ 三件已实现进 skill(2026-07-06,playbook §11 + strategy.yaml `intelligence:` 块,默认全关,开 `enabled` 即生效)
 
-**#8 分档 / context-aware 定制打招呼语** · `M / 高`
-strategy.yaml 加 `custom_greetings: {default, by_tier, by_target_company}`;playbook 触达环节让 LLM 按 `must.hit / nice.hit / target_company / 期望薪资 / 公司` 为每个 A 档生成 ≤30 字定制语(命中目标公司→"在 X 做 XXX 我们也在研究,想聊聊";全 must→"你的 X 背景很对口…"),发什么写进 ledger.actions 审计;接上 §7d 已记的自定义打招呼语页面。个性化 vs 通用模板,A 级回复率约 30%→60-70%。
+> 设计+落地方案见 playbook §11(运营智能层)。三把 `enabled` 独立开关默认 `false`;建议上线顺序 ①反馈环 → ②招呼语 → ③薪资(先装仪表盘、再优化油门、最后改发动机)。**红线守死:能自动的只有"读和算"+疑似风控自动止损;发文案/改预算/破格加薪一律用户点头。**
 
-**#9 当日反馈环 + 动态预算重分配** · `M / 高`
-playbook 加 Step 6.5:算已读率/回复率对比基线,低于基线 −20% 就提示"文案/人群/风控"三选一 + 收缩预算;畅聊卡按"是否转简历/面试"算有效成本;"5 连无回复 → 疑似风控停手冷却";ledger 加 `daily_stats`。从"傻转盘"升"自适应系统"。
+**#8 分档 / context-aware 定制打招呼语** · ✅ **已实现(§11.1)** —— `intelligence.custom_greetings`;A 档 LLM 按 must_hit/背景生成 ≤30 字、必引具体技能;每条给用户 Y/N/编辑确认才发(红线);打招呼后补发定制句;ledger.actions 记 greeting_mode/text/rationale 审计。
 
-**#10 薪资权衡框架(稀缺度 × 预算弹性)** · `M / 高`
-strategy.yaml 加 `budget: {base_salary_range, flexibility}`;must 全中但超带 ≤ flexibility 的人标 `A*_salary_sensitive`,报告给"建议破格 +N K"的**定量**建议;A 档不足且超预算时自动出加薪建议。现 §4 rule 4 超带一刀切封顶 B 太糙。
+**#9 当日反馈环 + 动态预算建议** · ✅ **已实现(§11.2,新增 Step 6.5)** —— `intelligence.feedback`;聚合 `daily_stats.jsonl` 算回复率对比基线,诊断文案/人群/风控;连续 5 无回复自动暂停止损(唯一自动写);预算/词只出建议不自动改。
+
+**#10 薪资权衡框架(稀缺度 × 预算弹性)** · ✅ **已实现(§11.3,改写 §4 rule 4)** —— `intelligence.salary_leverage` + `budget.base_salary_range/salary_flexibility_pct`;超带候选评 `scarcity_score`,够稀缺标 `A*_salary_sensitive` + 给定量加薪建议;破格永远用户勾同意下轮才触达。
 
 ### P1
 

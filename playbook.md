@@ -126,7 +126,13 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
 Step 6  触达(按 touch_policy)  [§5]
   · 优先免费推荐通道打招呼;搜索来的按 budget.chat_cards 逐张记账,超停
   · 开聊前看"同事沟通进度",不重复 pitch
+  · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板
   · 每个外发动作:写账本 + 计当日额度 + 卡记账;动作间留间隔
+
+Step 6.5 反馈评估(仅 intelligence.feedback.enabled)  [§11.2]
+  · 聚合当日 actions → 写 daily_stats,算回复率/已读率,对比 baseline
+  · 低于基线 → 诊断(文案/人群/风控);连续无回复≥阈值 → 自动暂停止损(唯一自动写)
+  · 预算/词只出建议进报告,不自动改 yaml
 
 Step 7  写账本 + 报告          [§6 §7]
 ```
@@ -147,9 +153,10 @@ Step 7  写账本 + 报告          [§6 §7]
 3. 缺任一 `must` → **封顶 B**(数值再高也 B;数值只在 B 内排序)。
    - 若某 must 只能从简历判(如"独立负责")→ 标 `provisional`,状态 `pending_resume`,暂按已知信息给临时档,开简历后重判。
 4. `reachable_now = false`(薪资远超带 且 "暂不考虑"/不主动,或城市硬冲突)→ **封顶 B**(A 保留给"现在值得联系且大概率能谈"的人)。
+   - **〔若 intelligence.salary_leverage.enabled〕薪资超带这一支改走 §11.3**:不即刻封 B,而是评 `scarcity_score`,够稀缺则标 `A*_salary_sensitive` + 给定量加薪建议(仍零自动触达,等用户授权)。城市/意愿硬冲突仍封 B。
 5. 其余按数值:**A ≥ 7.5;B 5 ≤ score < 7.5;C < 5**。nice/company_bonus 加分;薪资/城市/到岗错配 → 每项 −1~2 分并在 one_line 点出。
 
-**tier 取值:`A` / `B` / `C` / `unscored` / `A*`。** `A*` = **破格档**:技能明显 A 级、但被某条 cap 规则(如 <3年经验、略超带)压到 B,经**用户显式授权**破格触达的人。`A*` 不自动产生(不能靠数值升到 A*),只在用户拍板后由触达环节标注;计数上单列(不混入默认 `qualified_tiers:[A]`,除非策略显式把 A* 纳入)。ledger 用 `A*` 记这类候选人。
+**tier 取值:`A` / `B` / `C` / `unscored` / `A*`。** `A*` = **破格档**:技能明显 A 级、但被某条 cap 规则(如 <3年经验、略超带)压到 B,经**用户显式授权**破格触达的人。`A*` 不自动产生(不能靠数值升到 A*),只在用户拍板后由触达环节标注;计数上单列(不混入默认 `qualified_tiers:[A]`,除非策略显式把 A* 纳入)。ledger 用 `A*` 记这类候选人。**其中"薪资超带但技能稀缺"这类破格由 §11.3 薪资框架产出、标 `A*_salary_sensitive`。**
 
 `one_line` 必含:最大亮点 + 最大顾虑(薪资/意愿/经验缺口等)。
 
@@ -161,7 +168,7 @@ Step 7  写账本 + 报告          [§6 §7]
 |---|---|---|
 | `report_first` | 零外发 | A/B/C 全名单+打分 |
 | `greet_A_capped` | A 档自动打招呼(额度内,系统语) | B/C |
-| `greet_custom` | A 档自动打招呼(自定义语,引用背景) | B/C |
+| `greet_custom` | A 档自动打招呼(自定义语,引用背景)——**实现见 §11.1**(生成→用户逐条确认→打招呼后补发定制句;`intelligence.custom_greetings.enabled` 时任何含 A 打招呼的档都走它) | B/C |
 | **`full`(默认)** | A 档自动 打招呼 **+ 回复后求简历** | B/C + A 触达结果 |
 
 **⚠ full 档的"求简历"有平台前置门(2026-07-04 live 实测)**:候选人**未回复**时(会话 `[送达]`,非「沟通中」)求简历按钮是 `operate-btn disabled`,**点不动**。所以 full 档不是"打招呼当下顺手求简历",而是**打招呼 → 候选人回复 → 求简历**两拍。单次模式下,本轮打完招呼、候选人还没回,求简历就标 `pending-reply`,写进报告"待回执",下一轮(或阶段三心跳扫回执)再补。**别用 eval 强点 disabled 按钮**(无效且越红线)。
@@ -181,6 +188,11 @@ Step 7  写账本 + 报告          [§6 §7]
 
 字段:`id/name/masked/source/job/score/tier/status/first_seen/last_action/expect/company/actions[]/notes`。actions 记 `{t, act, cost(free|畅聊卡xN), result}`,可累加审计卡与额度。
 
+**运营智能层新增字段(仅对应 enabled 时写,见 §11):**
+- 候选人级(薪资框架):`salary_gap`(期望下限−base_max,K)、`scarcity_score`(0-10 纯技能稀缺)、`recommend_salary_delta`(建议加薪 K)、`salary_flexible_tier`(A*_salary_sensitive|null)、`approved_ceiling`(用户授权上限|null)、`last_touched_date`(防 24h 重复触达)。
+- `actions[]` 内(定制招呼语):`greeting_mode`(custom|default)、`greeting_text`、`greeting_length`、`greeting_rationale`。
+- **策略级 `daily_stats.jsonl`(反馈环,单独文件,不塞候选人行)**:每天一行 `{date, greets, delivered, reads, replies, cards_used, chat_converted, reply_rate, read_rate, diagnosis, no_reply_streak, status_flag}`。跨日累计 `no_reply_streak` 驱动风控判定;数据只从 actions 时间戳 + 扫回执聚合(无新 API)。
+
 ---
 
 ## 7. 报告(每轮一份,落 `strategies/<name>/reports/`)
@@ -198,6 +210,8 @@ B 档:简列(含缺 must/reachable 原因)
 C 档:数量+主因
 unscored:数量+缺什么数据
 账本:累计合格(A)P/目标Q。畅聊卡余R(本轮用S)。今日打招呼U/上限。
+〔若 salary_leverage.enabled〕【破格候选】姓名|超带{gap}K|稀缺度{score}/10|建议加薪至{X}K→可达性|**需你勾同意才下轮触达**
+〔若 feedback.enabled〕【当日反馈评估】回复率{r}(基线{b})/已读率|诊断:{文案|人群|风控|观察}|预算建议:greets {旧}→{新建议}(不自动改)|{疑似风控已自动暂停?}
 风险/异常 · 建议下一步(继续/转心跳/调策略/需人工点的深动作)
 ```
 
@@ -225,6 +239,41 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - ~~Step 0 健康指标无选择器~~ **✅ 2026-07-05 已验证**(每日打招呼额度=data-recruit iframe「沟通 X/200」、畅聊卡余量=搜索详情「剩余次数 xN」,见 operation-map §7d)。
 - ~~full 档求简历异步闭环~~ **✅ 2026-07-05 已定义扫回执**(沟通中 tab ∩ ledger greeted/chatted → 求简历,见 Step 0.5 + operation-map §7c)。
 - **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动,但操作本身待文档化)。
-- **接口层(XHR)只抓了推荐侧**,搜索/消息端点待补;批量/长期自动化建议接 §7d 接口作主路径、DOM 抓取降为 fallback(抗改版)。
+- **接口层**:推荐 `rec/geek/list` + 搜索 `geeks.json` 已作主路径(operation-map §7e);会话/消息=WebSocket 无干净 REST,回执类走 DOM 漏斗或接口 haveChatted/friendRelationStatus。
 - **浏览器 id 非通用**:命令里用 `<YOUR_BROWSER_ID>` 占位,每次先 `browser-act browser list` 换成自己的。
-- 招聘运营深度(分档定制招呼语、薪资破格建议、当日回复率反馈环、跨轮全局去重)——从"会点按钮"到"懂招聘"的下一步,见 REVIEW-20260704.md。
+- **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动)。
+
+---
+
+## 11. 运营智能层(intelligence,可选,strategy.yaml 里默认全关)
+
+> 三个功能把引擎从"会点按钮"升到"懂招聘",是**同一条触达链上的三个环**:薪资框架(§4 打分·产人)→ 定制招呼语(Step 6·发文案)→ 反馈环(Step 6.5·收数据反哺前两者)。在 strategy.yaml 的 `intelligence:` 块里各有 `enabled` 开关,**默认全 `false`;关时管线按老逻辑走,开时才挂载对应逻辑**。建议上线顺序:①反馈环 → ②招呼语 → ③薪资(先装仪表盘、再优化油门、最后改发动机)。
+>
+> **🔴 铁律:能自动的只有"读和算"**——聚合数据、算回复率、评稀缺度、生成招呼语**草稿**、疑似风控时**自动暂停止损**(唯一的自动写动作,方向是"停")。**凡往外走或改策略的都要用户点头**:发招呼语(逐条 Y/N/编辑)、改预算/greets、破格加薪(勾同意下轮才触达)、改搜索词——一律只出建议。
+
+### 11.1 定制招呼语(custom_greetings)— 挂在 Step 6
+门槛:`enabled=true` 且 `tier∈tiers` 且该人 `haveChatted==0`(仅首触)。否则用系统模板。
+- **生成**:LLM prompt。System 硬约束:① 字数严格 ≤ `max_chars`,越界 `valid=false`;② 只引用候选人真实背景不编造;③ 必须提一个**具体技能/项目名**(不能只"很厉害");④ 提及技能须是当前岗位 must_hit;⑤ 真诚不油腻(禁"非常荣幸"套话)。返回 `{greeting, why, length, valid}`。User prompt 注入:linked_job + must 逐项、候选人 name/company/geekDesc/最近2段经历、匹配信号(must ✓/✗、nice 强/弱、target_company 命中)。任务:"选该人最独特、最对口本岗的一个技能作切入点"。
+- **校验+兜底**:`length>max_chars` 或 `valid=false` 或 LLM 5s 超时 → fallback 系统模板,报告注明 fallback 原因。
+- **发送门(红线)**:`require_user_confirmation` 恒 true → 每条给用户看确认卡 `【定制招呼语确认】候选人 | 生成文本 | 依据 | 字数N/max | (Y/N/编辑)`;**没点头不发**。Y=发定制、N=发默认、编辑=校验字数后再问。
+- **落地**:Boss 的推荐/搜索"打招呼"按钮发的是账号系统模板,不能在点的当下换文案 → **定制那句用"打招呼(触发对话)→ 立刻在会话里补发定制消息"**(会话回复流程见 operation-map §7c:`#boss-chat-editor-input` + `.submit`)。
+- **审计**:ledger.actions 记 `greeting_mode(custom|default)/greeting_text/greeting_length/greeting_rationale`。
+- 例(某会议前端声学候选人(示例),must✓阵列声学):→ "您的阵列/波束处理经验正是会议系统的核心。"(26字)替代通用"你好,我司急聘…请问考虑么?"。
+
+### 11.2 当日反馈环(feedback)— 新增 Step 6.5(触达后、报告前)
+`enabled=true` 才跑,否则跳过。数据源只用 `actions[]` 时间戳 + Step 0.5 扫回执,**无新 API/权限**。
+1. 聚合当日 → 写 `daily_stats.jsonl`(见 §6),算 `reply_rate=replies/delivered`、`read_rate=(reads+replies)/delivered`。
+2. 对比 `baseline`;`reply_rate − baseline.reply_rate ≤ low_reply_delta(-0.20)` 且样本 `≥ min_samples_for_diagnosis(3)` → 进诊断(样本不足只写"观察更多数据",不判)。
+3. LLM 诊断权重:已读未回 >30% → **文案**;A档占比 <30% 且 delivered>5 → **人群**;连续无回复 ≥5 且多候选人 → **风控**;卡转化 <0.15 → 卡ROI。
+4. `no_reply_streak ≥ no_reply_streak_stop(5)` → **自动标 `status_flag=paused_suspected_throttle`、停本轮新触达冷却 `cooldown_hours`**(唯一自动止损)。
+5. 生成预算建议(新 greets_per_day 值)+ 诊断结论 → **只写进报告【当日反馈评估】,不改 yaml**(改预算/词用户下轮手动)。
+
+### 11.3 薪资破格框架(salary_leverage)— 改写 §4 rule 4
+`enabled=true` 才用新逻辑;否则超带即封 B(旧)。打分时(零外发):
+- `salary_gap = 候选人期望下限 − budget.base_max`;
+- `gap ≤ 0` 带内,正常评分;`0 < gap ≤ base_max×flexibility_pct%` 轻微超带,不降档,标 `recommend_salary_delta=gap`;
+- `gap >` 弹性上限 → 严重超带,LLM 评 **`scarcity_score`(0-10,纯技能稀缺,无关薪资/年限)**:must 全中+1、nice 每命中+0.25~0.5、目标公司+1、资历修饰(资深纯血/博士声学/论文专利 +1.5~2.5、纯学术无落地 −2)。
+  - `scarcity_score ≥ scarcity_threshold(7.5)` → **`tier='A*_salary_sensitive'`(破格候选,不封 B)**,报告给"建议加薪至 `min(期望下限, base_max×(1+pct%))` 后可达性 high,需授权";
+  - `< 7.5` → 仍封顶 B,报告"超带 {gap}K 但稀缺度仅 {score}/10,不自动争取"。
+- **拍板门(红线)**:`A*_salary_sensitive` **只报告零自动触达**;`break_glass_mode=manual` 时用户勾同意 + 写 `approved_ceiling` → **下一轮**才落定 A\* 进触达(并复用 §11.1 定制语通道:"…考虑您的背景,薪资可谈至 X…")。改薪资策略/破格承诺永远用户拍板。
+- 例(某13年纯血ASR候选人(示例),13年纯血ASR,期望超带30K):scarcity 8.5 ≥ 7.5 → 破格候选,"建议加薪至 57.5K(弹性上限)或 60K(期望下限),需授权"。
