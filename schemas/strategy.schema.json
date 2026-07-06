@@ -58,7 +58,7 @@
     "target_qualified": { "type": "integer", "default": 10, "description": "攒够 N 个合格(A)即够" },
     "intelligence": {
       "type": "object",
-      "description": "运营智能层,三把开关默认全关(见 playbook §11)",
+      "description": "运营智能层(见 playbook §11):custom_greetings/feedback/salary_leverage 默认关,card_prescreen 默认开",
       "properties": {
         "custom_greetings": {
           "type": "object",
@@ -85,6 +85,14 @@
             "enabled": { "type": "boolean", "default": false },
             "scarcity_threshold": { "type": "number" },
             "break_glass_mode": { "enum": ["manual", "auto"] }
+          }
+        },
+        "card_prescreen": {
+          "type": "object",
+          "description": "搜索畅聊卡(3卡/次)开聊前先免费打质量分,别冲动开卡(§11.4)。注意:唯一默认开的智能开关",
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "min_score": { "type": "number", "minimum": 0, "maximum": 10, "default": 6, "description": "质量分≥此值才建议开卡" }
           }
         }
       }

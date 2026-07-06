@@ -14,7 +14,7 @@
 - **⚠️ 读用 eval,点/输入用 browser-act 索引(最重要的操作铁律)**:iframe 主内容**同源**(zhipin.com),`eval "document.querySelector('iframe').contentDocument..."` **只用来读** DOM(比截图快一个量级)。但**交互(点击/输入)必须走 browser-act `state` → 取 `[索引]` → `click <索引>` / `input <索引>`**(真实指针手势)。**eval 的 `element.click()` 往往打不开详情弹层/模态框**,别用 eval 做交互——这是本文档最容易被误用的一条(全新 agent 实测因此失败)。
 - 本文出现的 CSS 选择器是**元素标识**(帮你在 state 里认出目标),不是让你 `querySelector` 后 eval-click;认出后仍用 browser-act 索引点击。
 - **左侧菜单常驻**:菜单在 iframe 外,任何页面都可点。菜单项 class 固定(见下表),比 state 索引稳。
-- **登录用户校验**:`eval "document.querySelector('.user-name')?.textContent"` → 应返回你的招聘者姓名(非空即登录有效)。
+- **登录用户校验**:`eval "document.querySelector('.user-name')?.textContent"` → 应为"你的招聘者"。
 - **访问废弃页会跳转**:如 `/web/boss/recommend` 显示"页面已停止维护 1s后跳转",等跳转即可。
 - **命令确切写法**(全新 agent 别再查 `--help`;`<名>`=你的会话名):
   - 开会话 `browser-act --session <名> browser open <YOUR_BROWSER_ID> <url> [--headed --allow-restart-chrome]`
@@ -236,7 +236,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - `searchChatCardCostCount` = 触达要几张畅聊卡(推荐通道通常 0=免费打招呼);
   - `hasAttachmentResume`、`recommendReason`;
   - `geekCard{ geekName, geekGender, geekWorkYear(经验年), geekDegree, freshGraduate(应届), geekDesc(优势自述), lowSalary/highSalary/salary(期望薪资), expectPositionName(期望职位), expectLocationName(期望城市), ageDesc, geekEdus(教育), geekWorks(工作经历), encGeekId, securityId(动作 token,打招呼/开聊要用) }` —— **就是 DOM 卡片上的全部信息,但是干净 JSON**。
-- **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(如 `<encJobId>`),账号/职位相关,别硬编码。
+- **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(如 `0a1b2c3d4e5f6g78hIJK-9LmN`),账号/职位相关,别硬编码。
 - **筛选参数**:age/degree/experience/salary 等直接对应 hard_filters(格式如 `age=16,-1` 区间、`degree/experience/salary=0` 表不限),接口筛比页面点更精确。
 
 ### 🟢 搜索通道(主路径,2026-07-06 实测)—— 接口反而比 DOM 干净,直接跳过"清默认"这套 UI 操作
@@ -285,7 +285,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - [ ] 自定义打招呼语的**实际设置**(功能已记录,措辞待用户定)—— 是"招聘运营深度"里分档定制招呼语的落地前提
 - [x] **搜索通道接口化**(geeks.json 全参数+响应结构+friendRelationStatus去重标,2026-07-06 实测,见 §7e🟢;接口直接传干净keywords,免掉清默认坑)
 - [ ] 会话/消息发送 = WebSocket,无干净 REST(§7e🔴);回执类去重走 DOM 漏斗或推荐接口 haveChatted
-- [ ] 招聘运营直觉(定制招呼语 / 薪资破格建议 / 当日回复率反馈环)—— 见 ROADMAP.md #8-#10
+- [x] 招聘运营直觉框架(定制招呼语 / 反馈环 / 薪资破格 / 花卡预判)—— 已落地为可选开关,见 playbook §11(默认关,逐个 enabled 启用);真机整轮实测待补
 
 ---
 

@@ -111,8 +111,8 @@ A: chrome-direct **接管期间独占**你的 Chrome,你手动操作会打架。
 **Q: 桥掉线报 `230404 Unknown error`?**
 A: browser-act 控制面/CDP 问题,不是账号封禁(`stealth-extract` 还能用就说明 cloud 没挂)。等 Chrome 完全就绪(AppleScript 能 count windows),再 `browser open <id> <url> --headed --allow-restart-chrome` 重试。详见 operation-map「桥恢复姿势」。
 
-**Q: 定制招呼语 / 反馈环 / 薪资破格怎么开?**
-A: 在 strategy.yaml 的 `intelligence:` 块把对应 `enabled` 改 `true`(默认全关)。建议顺序 ①feedback → ②custom_greetings → ③salary_leverage。逻辑见 playbook §11。
+**Q: 智能层(定制招呼语 / 反馈环 / 薪资破格 / 花卡预判)怎么开?**
+A: 在 strategy.yaml 的 `intelligence:` 块改对应 `enabled`。**`card_prescreen` 默认就是开的**(只减花卡、零外发,越保护越好);另外三把 `feedback` / `custom_greetings` / `salary_leverage` 默认关,建议顺序 ①feedback → ②custom_greetings → ③salary_leverage 逐个翻 `true`。逻辑见 playbook §11。
 
 ---
 

@@ -72,7 +72,7 @@ def validate_strategy(path):
 
     b = s.get("budget")
     if not isinstance(b, dict):
-        err("strategy.yaml: 缺 `budget`(至少含 greets_per_day / chat_cards)")
+        err("strategy.yaml: 缺 `budget`(必填;内部 greets_per_day/chat_cards 等字段有默认值)")
     else:
         for k in ("greets_per_day", "chat_cards"):
             if k in b and not isinstance(b[k], int):
@@ -80,6 +80,9 @@ def validate_strategy(path):
         bsr = b.get("base_salary_range")
         if bsr is not None and not (isinstance(bsr, list) and len(bsr) == 2 and all(isinstance(x, (int, float)) for x in bsr)):
             err("strategy.yaml: `budget.base_salary_range` 应是 [min,max] 两个数(K)")
+        bsfp = b.get("salary_flexibility_pct")
+        if bsfp is not None and not (isinstance(bsfp, (int, float)) and 0 <= bsfp <= 50):
+            err(f"strategy.yaml: `budget.salary_flexibility_pct` 应是 0-50 的数字,当前:{bsfp}")
 
     tq = s.get("target_qualified")
     if tq is not None and not isinstance(tq, int):
