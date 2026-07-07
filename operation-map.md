@@ -68,7 +68,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 > **① 架构**:搜索 UI(城市/岗位/关键词框/筛选/结果)**整个在 `iframe[name=searchFrame]` 里**——主文档 `querySelector` 够不到,browser-act `state` 也只在 frame 加载完后才索引到里面的控件。
 > **② 🔴 冷加载直达 URL 不初始化**:`browser open /web/chat/search` 直达 → 页面**渲染出来了但控件读不到/点不了**(state 空、eval 拿不到、显示"正在加载")。**必须从左菜单点「搜索」(`dl.menu-geeksearch`)应用内路由进**,控件才活(同聊天页冷加载坑)。
 > **③ 进页面就有三个"默认动作",全是坑**:
->   - **默认选中一个岗位**(账号的默认/最近发布的在线岗;`searchFrame` 内 `.search-current-job`)。🔴🔴**这个 jobId 实打实过滤/偏置你的关键词结果,不只是招呼归属**——实测:同一个关键词、同样筛选,**默认岗的前几名 与 `jobId=0`(不限)的前几名是完全不同的两组人**。→ **干净搜索前必须把岗位下拉改成「不限职位」(=jobId=0,纯关键词无偏置)或你真正的目标岗**,不设=被默认岗污染。
+>   - **默认选中一个岗位**(账号的默认/最近发布的在线岗;`searchFrame` 内 `.search-current-job`)。🔴🔴**这个 jobId 实打实过滤/偏置你的关键词结果,不只是招呼归属**——实测:同一个关键词、同样筛选,**默认岗的前几名 与 `jobId=0`(不限)的前几名是完全不同的两组人**。→ **干净搜索前必须把岗位下拉改成「不限职位」(=jobId=0,纯关键词无偏置)或你真正的目标岗**,不设=被默认岗污染。**污染程度 ∝ 关键词与默认岗的语义距离(2026-07-07 实测)**:词离岗**远**(如「灵巧手」vs AI算法岗)→ 结果相关性从 6/6 掉到 2/6,捞一堆「像岗不像词」的人;词离岗**近**(如「大模型算法」vs AI算法岗)→ 几乎无害甚至更聚焦(默认岗那组反而大厂算法负责人扎堆)。机制:jobId 让 Boss 按 **关键词 × 岗位 双重排人**。→ **因你控制不了默认预选的是哪个岗,纯关键词搜一律 `jobId=0` 最安全;只有故意要「按某岗排序打分」时才显式设目标岗。**
 >   - **自动加载一批"热门词"结果**:空关键词下,页面已用默认岗的热门词自动搜了 ~15 人 + "根据热门词为您检索到以下牛人"提示。**这不是你搜的,别当结果读**。
 >   - **城市默认空**(city input 空 = `city=-2` 不限/全国):**不污染**(round-3 曾高估城市污染,更正)。
 > **④ 岗位下拉**(`.search-job-list-C .ui-dropmenu` → `.search-current-job`):选项=不限职位 + 账号各在线岗(下面还混搜索历史/热词);它决定 (a) 结果偏置 (b) 搜索结果里点打招呼/开聊的**招呼归属岗**——搜前必设。
@@ -291,7 +291,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **筛选参数**:`city`=Boss cityCode(`-2`=不限;具体码从 `GET /wapi/zpCommon/data/getCityList` 拿)、`experience/salary/age`=`min,max` 区间(`-1,-1`=不限)、`degree`=学历码(`0`/`-1`=不限、`201`≈本科)。`filterParams` 是个 JSON(sortType/region 等),可给最小 `{"sortType":1,"region":{"cityCode":"-2"}}`。
 - **✅ 关键好处:接口直接构造干净 `keywords`+筛选参数,根本不用去 UI 里"清默认预选"那一套**(那是 DOM 路径才有的坑)。`extraStr.quickFilter` 是 Boss 给的建议筛选 chips,可留空/忽略。
 - **响应**:`zpData.geeks[]`(**注意 key 是 `geeks` 不是 `geekList`**)+ `zpData.hasMore`(翻页)。搜索结果是**打码候选人**(`geekCard.name` 形如 `"S**"`)。
-- **每个候选人**:`geekCard{ name(打码), gender, city, workYear, salary/lowSalary/hightSalary, geekDesc(优势), degreeName, current(当前公司/职位), expect(期望), encryptExpectId, securityId }` + 顶层 `friendRelationStatus`(**搜索通道的去重标**,是否已建立关系/联系过)、`geekCallStatus`、`read`、`works`、`ageDesc`。
+- **每个候选人**:`geekCard{ name(打码), gender, city, workYear, salary/lowSalary/hightSalary, geekDesc(优势,**⚠是对象、取 `.name`**), degreeName, current(当前公司/职位,**⚠是对象、取 `.name`**;另有 unitName/unitPosition 常为 null), expect(期望), encryptExpectId, securityId }` + 顶层 `friendRelationStatus`(**搜索通道的去重标**,是否已建立关系/联系过)、`geekCallStatus`、`read`、`works`、`ageDesc`。
 - **⚠ 触达搜索结果要花畅聊卡**(打码人,开聊=3卡+捆绑索要PII,见 §2B);接口只负责**免费拉列表/筛选**,真要触达仍走 UI 开聊(有确认+境外提示等门)。
 
 ### 🟢 搜索候选人详情(geek/info)—— 破 canvas 反爬,读全文简历(2026-07-07 实测)
