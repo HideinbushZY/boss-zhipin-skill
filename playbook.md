@@ -93,8 +93,9 @@ Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
   · 风控体感:聊天页反复"加载中"/额度异常/动作被拒 → 疑似软风控,停手冷却
   → 任一不足(未登录/额度剩<本轮预算/疑似风控)→ 停,报告
 
-Step 0.5  扫回执(补全 full 档异步闭环)  [operation-map §7c 扫回执机制]
-  · 进沟通页(左菜单点「沟通」,别冷加载 URL)→ 点「沟通中」漏斗 tab(div[title=沟通中])→ 取活跃对话名单
+Step 0.5  扫回执(补全 full 档异步闭环)  [operation-map §4.7 geekListV2 主路径 / §7c DOM 兜底]
+  · **取名单=接口优先(2026-07-07 起)**:同源 sync-XHR 调 `GET /wapi/zprelation/friend/manage/geekListV2?workflow=沟通中&page=N&pageSize=15` → `zpData.result[]`(每人 name+securityId+lastMsg/lastTS+encryptJobId),按 lastTS 判谁刚回;比翻 DOM 漏斗干净(§4.7)。要看某漏斗态全量就换 `workflow={单聊|沟通中|已约面|…}`。
+  · DOM 兜底:进沟通页(左菜单点「沟通」,别冷加载 URL)→ 点「沟通中」漏斗 tab(div[title=沟通中])→ 取活跃对话名单
   · 与 ledger 里 status∈{greeted,chatted} 的人取交集 = 本轮"回复了、求简历已解锁"的人
   · 对交集每人:打开会话后先核收件人(.name-container .name-box = 该人名,三验①)再点「求简历」——求简历也是外发,发错人同样不可撤回
   · 对交集每人(full/greet 档):开会话 → 点「求简历」(此时 enabled)→ 确认框「确定向牛人索取简历吗?」→ 确定 → ledger 记 request_resume;换电话/微信仍红线不自动
@@ -248,7 +249,7 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - ~~Step 0 健康指标无选择器~~ **✅ 2026-07-05 已验证**(每日打招呼额度=data-recruit iframe「沟通 X/200」、畅聊卡余量=搜索详情「剩余次数 xN」,见 operation-map §7d)。
 - ~~full 档求简历异步闭环~~ **✅ 2026-07-05 已定义扫回执**(沟通中 tab ∩ ledger greeted/chatted → 求简历,见 Step 0.5 + operation-map §7c)。
 - **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动,但操作本身待文档化)。
-- **接口层**:推荐 `rec/geek/list` + 搜索 `geeks.json` 已作主路径(operation-map §7e);会话/消息=WebSocket 无干净 REST,回执类走 DOM 漏斗或接口 haveChatted/friendRelationStatus。
+- **接口层**:推荐 `rec/geek/list` + 搜索 `geeks.json` 已作主路径(operation-map §7e);**互动 `interaction/bossGetGeek`(§4.6)+ 牛人管理漏斗 `friend/manage/geekListV2?workflow=`(§4.7)也是干净 REST**。**扫回执/查进展优先走 geekListV2(按漏斗态拉名单+lastMsg/lastTS)或推荐接口 haveChatted,DOM 漏斗退为兜底**;只有**逐条消息收发**才是 WebSocket、无 GET REST(§7e🟡)。
 - **浏览器 id 非通用**:命令里用 `<YOUR_BROWSER_ID>` 占位,每次先 `browser-act browser list` 换成自己的。
 
 ---
