@@ -130,6 +130,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - 表格列:牛人(勾选框+名) / 基本信息(学历·年龄·经验·薪资) / 最近工作经历;支持**批量勾选**、分页。
 
 > **状态机设计直接用这套漏斗**:`新招呼/单聊 → 沟通中 → 已约面 → 已发offer → 已入职`,失败态 `不合适`。牛人管理的漏斗比沟通页更全(含 offer/入职),做进度跟踪以它为准。
+> **🟢 进度跟踪走接口不走 DOM**:牛人管理漏斗有干净 REST `friend/manage/geekListV2?workflow={漏斗态}`(每态 name+securityId+lastMsg+lastTS+total,§4.7);"谁回复了/进展到哪步"直接拉接口。
 
 ---
 
@@ -170,11 +171,21 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 ### 4.5 意向沟通 `/web/chat/intention`(**付费**)
 - 顾问辅助招人:发现(付费专享)/ 待下单 / 我的订单;子标签 付费专享 / 收藏牛人 / 沟通中牛人。非免费主线,agent 默认不碰。
 
-### 4.6 互动 `/web/chat/interaction`(iframe `interactionFrame`)
-- 标签:对我感兴趣 / 我看过 / 同事推荐。卡片 `div.card-inner.new-geek-wrap`。
+### 4.6 互动 `/web/chat/interaction`(iframe `interactionFrame`,2026-07-07 全盘)
+- **6 个 tab**:收藏牛人 / 沟通过 / 看过我 / 对我感兴趣 / 我看过 / 同事推荐(+ 筛选)。卡片 `div.card-inner.new-geek-wrap`;tab 是 iframe 内 `<li title=…>`,browser-act state 能索引到(冷加载后左菜单点"互动"再点 tab,直接 eval 点 iframe 内元素会 no-tab)。
+- **🟢 接口主路径(免 DOM)**:`GET /wapi/zprelation/interaction/bossGetGeek?jobid={-1=全部/或 encJobId 按岗}&tag={N}&status={N}&page=N&geek-apply-status=-1&chat-status=-1&contact-status=-1`
+  - `tag`/`status` 编码是哪个 tab(实测 **对我感兴趣 = tag4&status4**;其余 tab 的值切 tab 抓包即得)。`jobid=-1` = 账号全局(**互动是账号级、非按岗**;要按岗传该岗 encJobId)。
+  - 响应 `zpData`:`geekList[]`(15/页)+ `hasMore` + `tagDesc`。每个 geek:`geekCard{…}` + **`haveChatted`/`isFriend`/`geekCallStatus`(去重标,§7f)** + `blur`(打码标)+ `positionName` + `mateName/shareNote`(同事推荐场景)。结构和推荐同族。
+- **💰 免费**:页面明示"沟通对我感兴趣的牛人,**不消耗权益**"——互动里的人是主动信号(对你感兴趣/看过你),打招呼走标准额度不耗畅聊卡。**优先级:推荐/互动(免费主动信号)> 搜索(耗卡)**。
 - 注意:搜索详情弹层的浏览**不一定计入"我看过"**(有延迟或不计),别用它回找。
 
-### 4.7 牛人管理 — 见 §3。
+### 4.7 牛人管理 `/web/chat/geek/manage_v2`(**表格式 ATS/CRM,会话账本真源头**,2026-07-07 全盘)
+- **漏斗列(tab)**:单聊 / 沟通中 / 已约面 / 已发offer / 已入职,失败态 `不合适`(独立)。表列:牛人(勾选+名) / 基本信息(学历·年龄·经验·薪资) / 最近工作经历 / 教育经历 / 应聘职位 / 操作。筛选:应聘岗位 / 学历 / 工作经验 / 年龄 / 求职状态 / 新招呼 / 我发起 + **搜姓名**。支持批量勾选、分页。
+- **🟢 接口主路径(免 DOM,这才是"谁回复了/进展到哪步"的干净数据源)**:`GET /wapi/zprelation/friend/manage/geekListV2?workflow={单聊|沟通中|已约面|已发offer|已入职}&notSuitable={0|1}&encryptJobId={空=全部/或按岗}&degree=&experience=&age=&applyStatus=&conversationType=&interviewDate=&name={搜姓名}&labelId={标签}&page=N&pageSize=15`
+  - `workflow` = 漏斗列(URL 编码;单聊=`%E5%8D%95%E8%81%8A`)。响应 `zpData`:`result[]`(15/页)+ **`total`(该漏斗态总数)** + `page`/`pageSize`。
+  - 每个 geek:`name`(打码/会话名)+ `securityId`(可喂 §7e geek/info 取全文详情)+ `avatar` + `sourceTitle` + `relationType`/`friendSource`/`sourceType`(关系来源)+ **`lastMsg`/`lastMessageInfo`/`lastTime`/`lastTS`(末条消息+时间=会话状态)** + `jobId`/`encryptJobId`(哪个岗)+ `isTop`。
+  - 配套接口:`friend/label/get`(标签列表)、`job/chatted/jobList`(有会话的岗位列表)。
+- **这是 §11.2 反馈环 + 扫回执(§7c)的接口级数据源**:按 `workflow` 拉各漏斗态名单 + `lastMsg/lastTS` 判回执进展,**不用再逐个点 DOM 会话**(比 §7c DOM 扫回执干净)。`name` 是打码/会话名,跨通道对齐仍看 §7f。
 
 ### 4.8 面试 `/web/chat/report/interview`
 - 月历(列表/宫格切换),绿标=已约面;当前暂无面试。**约面动作在会话内发起**,结果汇总到此日历。
@@ -326,9 +337,10 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **⚠ 纯只读**:geek/info 拉详情=免费、零外发、零红线;真要联系仍走 UI 开聊(3卡+PII捆绑,红线)。
 - geek/info **只是"搜索通道拿到一个候选人详情"的方式**;拿到的 `geekDetail` 各 `*List` 模块可转 markdown(比截图 OCR 干净准,详情画布截不到)。**但"导简历 md"是跟来源解耦的独立能力,别焊在搜索后面**——见 §7g。
 
-### 🔴 会话/消息列表 = WebSocket(没有干净 REST)
-- `GET /wapi/zpitem/web/chat/message/list/box` 实测只是**通知盒摘要**(单对象 showBox/title/messageInfo),**不是会话列表**。
-- 真正的会话列表和消息走 **WebSocket 实时推送**,没有可直接 GET 的 REST 端点 → **会话/回执类去重只能读 DOM 漏斗(§7c 扫回执),或用推荐接口的 `haveChatted` 标(更省事)**。
+### 🟡 会话状态/漏斗 = 有干净 REST;实时消息流 = WebSocket(2026-07-07 更正)
+- **漏斗/会话账本有干净 REST(§4.7)**:`friend/manage/geekListV2?workflow={漏斗态}&…` 返回每个候选人的 `name`+`securityId`+`lastMsg`+`lastTS`+漏斗态,`total` 给出各态总数。**"扫回执/查进展/谁回复了"走这个接口,不用 DOM。** 互动侧同理走 `interaction/bossGetGeek`(§4.6)。
+- **但实时消息内容流仍是 WebSocket**:`GET /wapi/zpitem/web/chat/message/list/box` 只是**通知盒摘要**(单对象 showBox/title/messageInfo);逐条消息的收发走 **WebSocket 实时推送**,没有 GET REST。
+- 结论:**候选人状态/漏斗/末条消息 = 接口可读(geekListV2);逐条消息收发 = 只能 DOM/WS**。回执类去重优先 geekListV2 的漏斗态 + 推荐接口的 `haveChatted` 标(§7f),DOM 扫回执(§7c)退为兜底。
 
 ## 7f. ✅ 全局去重(2026-07-06,防 24h 重复触达风控)
 触达前判"这人是不是已经接触过",两个来源:
@@ -371,7 +383,9 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - [ ] 会话内**约面**(`.interview`「约面试」)发起流程 —— 一级第④项,唯一没跑的核心动作(用户暂缓;红线不自动但操作待文档化)
 - [ ] 自定义打招呼语的**实际设置**(设置页选择器已只读补录 §7d,2026-07-06;写路径=账号级持久配置,等用户定措辞再走,agent 默认只读不写)—— 注意管线定制招呼语已有替代路径(§11.1 会话内补发),此项只影响系统默认语
 - [x] **搜索通道接口化**(geeks.json 全参数+响应结构+friendRelationStatus去重标,2026-07-06 实测,见 §7e🟢;接口直接传干净keywords,免掉清默认坑)
-- [ ] 会话/消息发送 = WebSocket,无干净 REST(§7e🔴);回执类去重走 DOM 漏斗或推荐接口 haveChatted
+- [x] **互动通道接口化**(`interaction/bossGetGeek`,账号全局+免费+tag/status 编码 tab,2026-07-07,见 §4.6)
+- [x] **牛人管理漏斗接口化**(`friend/manage/geekListV2?workflow=`,ATS/CRM 会话账本、扫回执真源头,2026-07-07,见 §4.7)
+- [ ] 逐条消息**收发** = WebSocket,无干净 REST(§7e🟡);但漏斗/会话态/末条消息已可接口读(geekListV2),回执类去重优先它 + 推荐接口 haveChatted
 - [x] 招聘运营直觉框架(定制招呼语 / 反馈环 / 薪资破格 / 花卡预判)—— 已落地为可选开关,见 playbook §11(默认关,逐个 enabled 启用);真机整轮实测待补
 
 ---
