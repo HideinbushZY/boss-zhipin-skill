@@ -120,7 +120,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - 招聘类型:`chose-item` 单选,社招全职默认(核 active);是否驻外:`chose-item`,选「境内岗位」。
   - 职位名称:`input[name=jobName]`,`input <idx>` 直接写。
   - 职位描述:`textarea`,`input <idx>` 写 JD(**禁 QQ/微信/电话/特殊符号**否则校验挂;用「岗位职责/任职要求」纯文本标题即可,别用生僻符号)。
-  - 职位类型(锁死):`input[name=jobCategory]` → 点开弹「请选择职位类型」推荐标签(硬件产品经理/AI产品经理/产品总监…),每个是 `div.job-recommend-content_item`(**注意:前面的「产品经理」是分组标题不是选项,别点错**);选叶子后弹层自动关、input 回填。要更细类目点「查看全部职位类型」。
+  - 职位类型(锁死):`input[name=jobCategory]` → 点开弹「请选择职位类型」推荐标签(按你职位方向 Boss 推荐几个,如 硬件产品经理/AI产品经理 等),每个是 `div.job-recommend-content_item`(**注意:前面的「产品经理」是分组标题不是选项,别点错**);选叶子后弹层自动关、input 回填。要更细类目点「查看全部职位类型」。
   - 经验/学历:`ui-select-selection` 下拉,`click <idx>` 开,选项是 `ui-select-item`(经验档:不限/1年以内/1-3/3-5/5-10/10年以上——**无自定义区间**)。
   - 薪资:三个 `ui-select`(最低月薪/最高月薪/薪资月数)。**⚠坑:薪资下拉选项渲染在 portal,browser-act `state` 索引不到,只能 eval 读 `.ui-select-dropdown` + eval-click 目标项**(如 `30k`/`60k`/`16个月`;选最低后最高自动填个默认要改;月数只单值 12-24 个月,**无区间**)。选项文本小写 `k`。
   - 工作地址(锁死城市来源):`input[placeholder=选择工作地点]` → 弹「请选择工作地址」列账号已存地址(`div.address-item`,radio `normal-radio`)→ 选目标城市那行 → 点 `btn-sure-v2`「使用该地址」→ input 回填,**城市由此定死**。
