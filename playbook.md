@@ -88,7 +88,7 @@
 Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
   · **跑前校验**:`python3 validate.py strategies/<name>/` —— 过了再跑,把"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range"这类配置错挡在早期(schema 见 schemas/,校验器不依赖 jsonschema)
   · 登录:eval .user-name 有值(⚠ 浏览器 id 用你自己的,SKILL.md §用前必做)
-  · 每日打招呼额度:进 /web/chat/data-recruit,读该页 iframe.innerText 的「沟通 X/200」→ 剩余=200−X;剩余<~10 就收/停,别撞上限触软风控
+  · 每日打招呼额度:**接口优先(2026-07-07)**——`privilege/my/detail` 每日沟通总量(200) − `recruitDataCenter/get.json` 的 `todayData.chatInitiative`(今日已打招呼)= 剩余(见 operation-map §7d);DOM 兜底=读 data-recruit 的「沟通 X/200」。剩余<~10 就收/停,别撞上限触软风控
   · 畅聊卡余量:搜索结果详情右侧「畅聊卡 剩余次数 xN」或按钮「搜索畅聊卡(3/N)」的 N;开聊=3卡/次,预算按 3/开聊 折算
   · 风控体感:聊天页反复"加载中"/额度异常/动作被拒 → 疑似软风控,停手冷却
   → 任一不足(未登录/额度剩<本轮预算/疑似风控)→ 停,报告
@@ -137,7 +137,7 @@ Step 6  触达(按 touch_policy)  [§5]
   · 🔴 会话内发消息必过"三验":①收件人(聊天头部 .name-container .name-box = 目标名)②内容(编辑框=批准稿)③送达回读(线程仍是目标+末条气泡=刚发内容)——缺一不发(operation-map §7c,真实误发事故换来的)
 
 Step 6.5 反馈评估(仅 intelligence.feedback.enabled)  [§11.2]
-  · 聚合当日 actions → 写 daily_stats,算回复率/已读率,对比 baseline
+  · 数据源=`recruitDataCenter/get.json` 的 `todayData`(接口,§7d:view/chatInitiative/chat/resume… 带较昨日)+ 本地 actions;聚合当日 → 写 daily_stats,算回复率/已读率,对比 baseline(**别爬看板 DOM**)
   · 低于基线 → 诊断(文案/人群/风控);连续无回复≥阈值 → 自动暂停止损(唯一自动写)
   · 预算/词只出建议进报告,不自动改 yaml
 

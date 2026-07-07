@@ -270,6 +270,11 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 - **账号权益**(顶栏,右侧滑出面板,非新标签):企业版,职位发布权益 **5 个在线职位**;**每日使用权益:主动查看=不限 / 沟通总量=200 个 / 回复=不限**。→ 打招呼/沟通日限=**200/天**,查看和回复不限。
 - **招聘数据**(`/web/chat/data-recruit`):日报/周报/月报/VIP权益数据;今日概览 8 指标(我看过/看过我/我打招呼/牛人新招呼/我沟通/收获简历/交换电话微信/接受面试,均带昨日对比)+ 趋势图(近7天/近30天/自定义)。招聘漏斗看板。
+- **✅ 运营数据接口(2026-07-07 实测——健康检查/反馈环走接口,别爬看板 DOM)**:
+  - **今日漏斗指标**:`GET /wapi/zpboss/h5/weeklyReportV3/recruitDataCenter/get.json?jobId=0&platform=1&date=`(jobId=0=全部岗)→ `zpData.todayData`:`view`(我看过)/`viewed`(看过我)/`chatInitiative`(我打招呼)/`contactMe`(牛人新招呼)/`chat`(我沟通)/`resume`(收获简历)/`exchangePhoneAndWeiXin`(交换电话微信)/`interviewAccept`(接受面试),每个都带 `xxxCTY`(较昨日)+ `chatInitiativeRightsConsumption`/`viewRightsConsumption`(权益消耗)+ `dataUpdateTime`/`updateCycleMin`。**这是 §11.2 反馈环 daily_stats 的干净数据源**。
+  - **趋势**:`recruitDataCenter/getHistory.json?jobId=0&platform=1&startDate8=YYYYMMDD&endDate8=YYYYMMDD` → 日期区间趋势;`recruitDataCenter/daily/getDate` = 可选日期。
+  - **权益/额度**:`GET /wapi/zpblock/privilege/my/detail` → `zpData.accountPrivilege[]`:职位发布权益(`count=5` 在线竞招职位)、每日使用权益(沟通=200 / 查看=不限 / 回复=不限)、VIP 到期等。**这是"打招呼日限 200"的接口来源**(比读看板 DOM 稳)。
+  - **健康检查算法(Step 0)**:剩余打招呼额度 = privilege 的每日沟通总量(200) − get.json 的 `todayData.chatInitiative`(今日已打招呼)。⚠ 畅聊卡余量目前仍读搜索详情 DOM「剩余次数 xN」(§5),其接口本轮未定位(疑在道具/item 下)。
 - **✅ 健康检查读法(2026-07-05 实测,支撑 playbook Step 0 自动判断)**:数据在**该页的 iframe 里**(顶层 body 几乎空)。读法:`eval` 遍历 `document.querySelectorAll('iframe')`,取 `contentDocument.body.innerText` 里含 `/200` 的那个 frame,解析:
   - **每日打招呼额度**:文本里的「沟通 **X/200**」(实测当时 5/200、"当前剩余195个打招呼权益")——这是每日主动沟通日限的权威计数。**阈值:剩余 < ~10 就收着点/停,别撞 200 上限触发软风控。**
   - **今日漏斗**:我打招呼 / 我沟通 / 收获简历 / 交换电话微信 / 接受面试 的当日数(可核对外发是否真的发出去了、有没有异常掉零)。
