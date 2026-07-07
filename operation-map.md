@@ -304,7 +304,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - `geekWorkExpList[]`{ startYearMonStr, endYearMonStr, company, positionName, department, **responsibility(工作职责全文)**, workPerformance(业绩) }
   - `geekProjExpList[]`(项目)、`geekEduExpList[]`{ school, major, degreeName, eduType, thesisTitle, courseDesc, majorRankingDesc }、`professionalSkill`、`resumeSummary`、`highlightWords`、`certList` 等。
 - **⚠ 纯只读**:geek/info 拉详情=免费、零外发、零红线;真要联系仍走 UI 开聊(3卡+PII捆绑,红线)。
-- **导出简历 markdown**:遍历各 `*List` 模块 → 基本信息/求职意向/个人优势/工作经历/教育 分节拼 md,比截图 OCR 干净准。**这是"批量读搜索候选人详情 / 转简历文档"的主路径**(截图只能截搜索结果卡,详情画布截不到)。
+- geek/info **只是"搜索通道拿到一个候选人详情"的方式**;拿到的 `geekDetail` 各 `*List` 模块可转 markdown(比截图 OCR 干净准,详情画布截不到)。**但"导简历 md"是跟来源解耦的独立能力,别焊在搜索后面**——见 §7g。
 
 ### 🔴 会话/消息列表 = WebSocket(没有干净 REST)
 - `GET /wapi/zpitem/web/chat/message/list/box` 实测只是**通知盒摘要**(单对象 showBox/title/messageInfo),**不是会话列表**。
@@ -317,6 +317,17 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 3. ledger 建议加 `last_touched_date` 字段,配合"同一人 24h 内不重复触达"的软规则。
 **为什么要紧**:同一候选人短时被多次打招呼(跨策略/跨同事)极易触发爬虫风控,还砸雇主品牌——这是 silent killer。
 - **实战侧记**:候选人A(示例)(初判弱匹配)收到求简历后**发来附件简历**并在回复里补充了履历上看不到的语音实战(asr/vad/tts/kws 均做过)——实际比履历显示的更对口,说明**对话探询能挖出履历外的匹配信息**,是筛选环节的价值点。
+
+## 7g. ✅ 候选人 → 简历 markdown 导出(单点能力,与来源解耦)
+
+"把一批候选人的简历导成 markdown" 是个**独立单点能力,别和"怎么找到这批人"焊成一条固定管线**——同一个导出动作接在任何来源后面都行:
+- **输入 = 一批候选人 + 各自的详情来源**(来源只决定用哪个接口取详情):
+  - 主动搜索来的 → `geek/info?securityId={geekCard.securityId}`(§7e,破 canvas 反爬)
+  - 推荐通道来的 → `rec/geek/list` 的 `geekCard` 本身已含 name/经验/学历/优势/期望/教育/工作经历,**不用再调详情接口**
+  - inbound / 已在账本的人 → 已有的详情或简历附件
+- **输出 = 每人一个 md**:遍历详情的 基本信息 / 求职意向 / 个人优势 / 工作经历(职责+业绩)/ 项目 / 教育 分节拼(字段名见 §7e `geekDetail`)。
+- **纯只读:零外发、零红线、零成本**(不触达、不开卡、不碰打码人 PII 交换)。
+- **⚠ 别默认它只跟在主动搜索后**:用户可能丢给你任意一批人(某次搜索结果 / 某岗推荐名单 / 账本里某档人)让你导简历。把"找人"和"导简历"当**两件独立事**去组合,别写死成一条路径。
 
 ## 8. 进度清单
 
