@@ -122,9 +122,11 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
   · **主路径=接口(2026-07-06 起)**:同源 sync-XHR 调
     `GET /wapi/zpitem/web/boss/search/geeks.json?page=N&jobId={encJobId}&keywords={关键词}&city={cityCode}&experience={min,max}&salary={min,max}&age={min,max}&degree={code}&source=1` →
     从 `zpData.geeks[]`(打码人)逐页拉到 `hasMore=false`。**接口直接传干净 keywords+筛选,免掉了 DOM 路径"清默认预选"那一套坑**;关键词矩阵在 keywords 里逐组轮换。
-  · **DOM 兜底**:接口异常才降级到 §2B 的 DOM 搜索(那时才需清默认预选 + searchFrame 读结果)。
+  · **详情也走接口(2026-07-07 起):** 要深读某打码候选人的全文简历(工作职责/项目/教育)→ 拿该人 `geeks.json` 响应里的 `geekCard.securityId` 调
+    `GET /wapi/zpitem/web/boss/search/geek/info?securityId={securityId}&query={关键词}&encryptGeekDetailGray=1` → `zpData.geekDetail` 是**明文结构化简历**(§7e)。**免费、零外发**。⚠ 别靠 DOM 点结果卡读详情——那是新标签+canvas 反爬,读不到(§2B)。
+  · **DOM 兜底**:仅接口异常时才降级 §2B DOM 搜索(清默认预选 + searchFrame);DOM 只在"真开聊触达"时碰。
   · 去重:`geeks.json` 的 `friendRelationStatus`/`geekCallStatus` 命中即已联系过,skip(§7f)。
-  · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费四信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);≥门槛再进触达。
+  · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);拿不准就先 `geek/info` 免费读全文简历再定,≥门槛才进触达。
   · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5]

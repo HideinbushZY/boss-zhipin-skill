@@ -75,10 +75,11 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **⚠️🔴 搜索畅聊卡「开聊」= 捆绑动作,自动索要微信/电话(2026-07-04 实测,红线警告)**:搜索结果详情里的大按钮 `button.btn-sure-v2`「搜索畅聊卡(N/17)」**不是普通打招呼**——点它=**消耗 3 张搜索畅聊卡** + **系统一键"发起沟通并索要简历/微信/电话"**(开聊成功提示原文:"已为您发起沟通并索要简历/微信/电话,该牛人已开通虚拟电话可直接联系")。**即畅聊卡开聊内置了 换微信/换电话 的 PII 请求**,落在永久红线里。**用畅聊卡前必须先向用户确认接受这个捆绑**;按钮紧挨 举报/不合适,认准 `btn-sure-v2` 再点。**💰成本:每次开聊消耗 3 张搜索畅聊卡(不是1张)——按钮标"搜索畅聊卡(3/N)"里的 3=单次消耗、N=剩余(实测 17→14)。做卡预算换算时按 3/开聊 算(4 卡预算=只够 1 次开聊)。**账号搜索畅聊卡余量在详情右侧"畅聊卡 剩余次数 xN"。
 - 筛选:学历 `span.degree-item`、年龄 `span.age-item`(单选,active class 标当前);更多筛选含薪资/院校等。
 - 排序:综合排序(默认)/ 活跃优先 / 匹配度优先。**综合排序动态洗牌**,回找特定人要靠"关键词+年龄+学历"组合逼近。
-- 结果卡容器 `li.geek-info-card`(内含 `<a>`,browser-act state 里显示为 `<a parent_class=geek-info-card>`);**用 state 取该 `<a>` 的索引再 `click <索引>` 打开详情——eval 的 `.click()` 打不开**(见 §0 铁律)。姓名打码(如 张**);列表**虚拟滚动**(一次渲染 2-4 张,逐屏滚)。
-- 开聊消耗**畅聊卡**(见 §5 成本)。
+- 结果卡容器 `li.geek-info-card`(内含 `<a parent_class=geek-info-card>`),姓名打码(如 张**);列表**虚拟滚动**(一次渲染 2-4 张,逐屏滚)。
+- **🔴 读候选人=接口优先,别靠 DOM 点卡片(2026-07-07 更正)**:searchFrame 里结果卡的 `<a>` browser-act **state 时有时无地索引不到**;卡片是 `ka=search_click_open_resume` 用 JS 在**新标签页**打开、简历**画在 canvas 上反爬**(gray 灰度 `encryptGeekDetailGray`),**DOM 读不到、跟不到新标签、截不到干净详情**。→ **列表用 `geeks.json`、详情用 `geek/info` 接口(§7e),端到端接口,不碰这套脆弱 DOM。** DOM 卡片点击只在"真要开聊触达"时才用(且开聊详情页在灰度账号上也可能是 canvas,行为按账号异)。
+- 开聊消耗**畅聊卡**(见 §5 成本);触达仍走 UI。
 
-> 一句话:**能推荐就别搜索**(省畅聊卡);搜索用于推荐覆盖不到的精准定向。
+> 一句话:**能推荐就别搜索**(省畅聊卡);**搜索的"找+读"全走接口层(§7e:geeks.json 列表 + geek/info 详情),DOM 只在开聊触达时碰**;搜索用于推荐覆盖不到的精准定向。
 
 ---
 
@@ -275,6 +276,18 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **响应**:`zpData.geeks[]`(**注意 key 是 `geeks` 不是 `geekList`**)+ `zpData.hasMore`(翻页)。搜索结果是**打码候选人**(`geekCard.name` 形如 `"S**"`)。
 - **每个候选人**:`geekCard{ name(打码), gender, city, workYear, salary/lowSalary/hightSalary, geekDesc(优势), degreeName, current(当前公司/职位), expect(期望), encryptExpectId, securityId }` + 顶层 `friendRelationStatus`(**搜索通道的去重标**,是否已建立关系/联系过)、`geekCallStatus`、`read`、`works`、`ageDesc`。
 - **⚠ 触达搜索结果要花畅聊卡**(打码人,开聊=3卡+捆绑索要PII,见 §2B);接口只负责**免费拉列表/筛选**,真要触达仍走 UI 开聊(有确认+境外提示等门)。
+
+### 🟢 搜索候选人详情(geek/info)—— 破 canvas 反爬,读全文简历(2026-07-07 实测)
+点搜索结果卡看简历详情有一整套**反爬**:卡片 `<a ka=search_click_open_resume>` 用 JS 在**新标签页**打开、简历画在 **`<canvas>`** 上(伴随 `static.zhipin.com/.../wasm/resume/wasm_canvas_bg.wasm`)——**DOM 读不到文字、browser-act 跟不到新标签、eval-click 触发不了、干净截详情页也做不到**。**但接口层直接破了它**:
+`GET /wapi/zpitem/web/boss/search/geek/info?securityId={该候选人的 geekCard.securityId}&query={关键词}&encryptGeekDetailGray=1`
+- **securityId 自足**:从上面 `geeks.json` 响应里**每个候选人的 `geekCard.securityId`** 直接取(**不用抓包**;实测 ~1148 字符)。→ 即"搜索列表用 geeks.json,读某人详情用 geek/info",端到端接口,不碰脆弱 DOM。
+- **响应 `zpData.geekDetail` 是明文结构化 JSON**(同响应里的 `encryptGeekDetail`/`wasm` 只给 canvas 渲染用;明文 `geekDetail` 直接可读):
+  - `geekBaseInfo`{ name(打码), ageDesc, workYearDesc, degreeCategory, applyStatusContent(求职状态), activeTimeDesc, **userDescription(个人优势全文)** }
+  - `geekExpectList[]`{ locationName, positionName, salaryDesc, industryDesc }(求职意向,可多条)
+  - `geekWorkExpList[]`{ startYearMonStr, endYearMonStr, company, positionName, department, **responsibility(工作职责全文)**, workPerformance(业绩) }
+  - `geekProjExpList[]`(项目)、`geekEduExpList[]`{ school, major, degreeName, eduType, thesisTitle, courseDesc, majorRankingDesc }、`professionalSkill`、`resumeSummary`、`highlightWords`、`certList` 等。
+- **⚠ 纯只读**:geek/info 拉详情=免费、零外发、零红线;真要联系仍走 UI 开聊(3卡+PII捆绑,红线)。
+- **导出简历 markdown**:遍历各 `*List` 模块 → 基本信息/求职意向/个人优势/工作经历/教育 分节拼 md,比截图 OCR 干净准。**这是"批量读搜索候选人详情 / 转简历文档"的主路径**(截图只能截搜索结果卡,详情画布截不到)。
 
 ### 🔴 会话/消息列表 = WebSocket(没有干净 REST)
 - `GET /wapi/zpitem/web/chat/message/list/box` 实测只是**通知盒摘要**(单对象 showBox/title/messageInfo),**不是会话列表**。
