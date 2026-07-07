@@ -15,6 +15,7 @@
 - 本文出现的 CSS 选择器是**元素标识**(帮你在 state 里认出目标),不是让你 `querySelector` 后 eval-click;认出后仍用 browser-act 索引点击。
 - **左侧菜单常驻**:菜单在 iframe 外,任何页面都可点。菜单项 class 固定(见下表),比 state 索引稳。
 - **登录用户校验**:`eval "document.querySelector('.user-name')?.textContent"` → 应为"你的招聘者"。
+- **🔴 操作前核当前页 = zhipin.com(2026-07-07 踩过)**:chrome-direct **跟随用户当前活跃标签页**——用户一切到别的标签(比如飞书招聘/offer 页),你的 eval/state/接口调用就全在那个标签上跑了(同源接口 XHR 会因域名不对而报错/或读到别的站点数据)。**每次接管、每批操作前先 `eval "location.href"` 确认是 zhipin.com**(接口调用尤其致命:相对 URL 会解析到当前域名)。同"发消息核收件人"——这是核"当前页"。别读/别动用户在别的平台的私密数据。
 - **访问废弃页会跳转**:如 `/web/boss/recommend` 显示"页面已停止维护 1s后跳转",等跳转即可。
 - **命令确切写法**(全新 agent 别再查 `--help`;`<名>`=你的会话名):
   - 开会话 `browser-act --session <名> browser open <YOUR_BROWSER_ID> <url> [--headed --allow-restart-chrome]`
@@ -55,6 +56,20 @@
 Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 必须区分:
 
 ### 通道 A|推荐牛人(被动,优先用,成本低)
+
+> **🗺️ 推荐通道操作逻辑·全盘(2026-07-07 实测)**
+>
+> **① 架构 + 按岗**:UI 在 `iframe[name=recommendFrame]`(冷加载也"加载中,请稍后",要等/走菜单进)。推荐是**针对"当前选中岗"的算法匹配**——右上角**岗位切换器**(显示"岗位名_城市+薪资带")+ 城市 + 筛选。**推荐默认岗 ≠ 搜索默认岗**(两通道各记各的当前岗)。
+> **② tabs**:推荐(默认)/ 最新(/ 有时"精选"带数字)。
+> **③ 卡片 = 真名 + 完整画像全内联**(和搜索的打码+canvas反爬**完全两样**):**真实姓名**(不打码)、年龄/经验/学历/求职状态/期望城市+职位/薪资/优势自述/**完整工作经历+教育时间线**/命中标签——**全在卡上直接可读,不用开详情、无 canvas 反爬**。
+> **④ 打招呼**:每张卡右侧「打招呼」按钮,**免费**(走标准沟通日额度 200/天,不耗畅聊卡;接口字段 `searchChatCardCostCount=0`),发的是系统模板开场白(想定制→打招呼后会话内补发,§11.1/§7c)。
+> **⑤ 接口主路径 = `rec/geek/list?jobId={encJobId}&page=1`**(仍有效;页面自己渲染另用 `rec/f1/card`,裸调 XHR 返回空 zpData、要页面上下文,别拿它当列表源):
+>   - 响应 `zpData.geekList[]`(**每页 15**)+ `zpData.hasMore`(翻 page=1,2,3… 到 false 拿全量,**无虚拟滚动、无 state 索引退化**)。
+>   - 每个 geek:geek 级 `haveChatted`/`isFriend`/`geekCallStatus`(**去重标**,§7f)+ `geekLastWork`/`showEdus` + `geekCard{ geekName(真名), geekGender, geekWorkYear, geekDegree, freshGraduate, geekDesc(优势), salary/lowSalary/highSalary, expectPositionName, expectLocationCode, securityId(动作 token,~696字符), encGeekId … }`。
+>   - `encJobId` 怎么拿:抓包 `rec/f1/card`/`rec/geek/list` 的 `jobId=`,或从推荐 iframe 取。
+> **⑥ 去重**:geek 级 `haveChatted==1`/`isFriend==1` → 已接触直接 skip(§7f,Boss 官方口径最准)。推荐是**真名**,可直接和搜索的打码人跨通道对齐(打码↔真名难题在推荐侧不存在)。
+> **⑦ vs 搜索(一句话)**:推荐=**被动/免费/按岗/真名/卡片自带全画像/不用详情接口**;搜索=主动/付费(3卡+PII捆绑)/全库/打码/详情 canvas 反爬要走 `geek/info`。**能推荐就别搜索**(省卡),推荐覆盖不到才搜。
+
 - 入口 `/web/chat/recommend`,标签:推荐 / 精选(带数字) / 最新。
 - 右上角**按职位切换**(显示"职位名_城市+薪资带"),推荐结果是算法针对该职位的匹配。
 - 卡片**显示候选人真名**(如"张伟 David(虚构示例)"),含年龄/经验/学历/求职状态/期望薪资/优势/工作经历时间线。
