@@ -197,7 +197,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 ## 5. 成本 / 额度模型(agent 决策前必查)
 
-- **畅聊卡(搜索畅聊卡)**:主动搜索开聊消耗。按钮文案 `搜索畅聊卡(N/M)` = **单次消耗 N / 剩余 M**。**⚠ 实测单次开聊消耗 3 张(2026-07-04,17→14),以 §2B 的详细说明为准**(此前"消耗 2"的旧记为误)。详情弹层右侧"畅聊卡 剩余次数 xN"也可见。做卡预算换算按 3/开聊 算。
+- **畅聊卡(搜索畅聊卡)**:主动搜索开聊消耗。**⚠ 单次成本逐人不同 1~3 张**(2026-07-08 修正:读 geekCard 的 `searchChatCardCostCount`,非固定 3;按钮 `搜索畅聊卡(N/M)` 的 N=该人消耗、M=剩余)。**余量走接口** `geeks.json` 顶层 `chatCardCount`(不必再读 DOM「剩余次数 xN」)。开聊完整流程+接口 `useCard` 见 §7i。
 - **打招呼(推荐牛人)**:走标准沟通额度,**不耗畅聊卡**——优先用。
 - **意向沟通 / 批量获得投递**:付费服务。
 - **账号权益**页(顶栏,新标签):看各类额度/权益总览。
@@ -285,7 +285,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - **今日漏斗指标**:`GET /wapi/zpboss/h5/weeklyReportV3/recruitDataCenter/get.json?jobId=0&platform=1&date=`(jobId=0=全部岗)→ `zpData.todayData`:`view`(我看过)/`viewed`(看过我)/`chatInitiative`(我打招呼)/`contactMe`(牛人新招呼)/`chat`(我沟通)/`resume`(收获简历)/`exchangePhoneAndWeiXin`(交换电话微信)/`interviewAccept`(接受面试),每个都带 `xxxCTY`(较昨日)+ `chatInitiativeRightsConsumption`/`viewRightsConsumption`(权益消耗)+ `dataUpdateTime`/`updateCycleMin`。**这是 §11.2 反馈环 daily_stats 的干净数据源**。
   - **趋势**:`recruitDataCenter/getHistory.json?jobId=0&platform=1&startDate8=YYYYMMDD&endDate8=YYYYMMDD` → 日期区间趋势;`recruitDataCenter/daily/getDate` = 可选日期。
   - **权益/额度**:`GET /wapi/zpblock/privilege/my/detail` → `zpData.accountPrivilege[]`:职位发布权益(`count=5` 在线竞招职位)、每日使用权益(沟通=200 / 查看=不限 / 回复=不限)、VIP 到期等。**这是"打招呼日限 200"的接口来源**(比读看板 DOM 稳)。
-  - **健康检查算法(Step 0)**:剩余打招呼额度 = privilege 的每日沟通总量(200) − get.json 的 `todayData.chatInitiative`(今日已打招呼)。⚠ 畅聊卡余量目前仍读搜索详情 DOM「剩余次数 xN」(§5),其接口本轮未定位(疑在道具/item 下)。
+  - **健康检查算法(Step 0)**:剩余打招呼额度 = privilege 的每日沟通总量(200) − get.json 的 `todayData.chatInitiative`(今日已打招呼)。**✅ 畅聊卡余量接口已定位(2026-07-08)**:`geeks.json` 响应顶层 `chatCardCount`(剩余)/`allChatCardCount`(总),不必再读 DOM「剩余次数 xN」(§7i)。
 - **✅ 健康检查读法(2026-07-05 实测,支撑 playbook Step 0 自动判断)**:数据在**该页的 iframe 里**(顶层 body 几乎空)。读法:`eval` 遍历 `document.querySelectorAll('iframe')`,取 `contentDocument.body.innerText` 里含 `/200` 的那个 frame,解析:
   - **每日打招呼额度**:文本里的「沟通 **X/200**」(实测当时 5/200、"当前剩余195个打招呼权益")——这是每日主动沟通日限的权威计数。**阈值:剩余 < ~10 就收着点/停,别撞 200 上限触发软风控。**
   - **今日漏斗**:我打招呼 / 我沟通 / 收获简历 / 交换电话微信 / 接受面试 的当日数(可核对外发是否真的发出去了、有没有异常掉零)。
@@ -386,11 +386,30 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 5. **LLM 对画像打分排档(不固化 rubric)**:把每人**真实履历**丢给 LLM,对着软画像做**语义贴合判断**,排 T1/T2/T3 + 标贴合点 + 风险标记(薪资异常/资历过浅等)。**不写死权重、不量化打分公式** —— 保持 LLM 判断。
 
-**输出**:排档短名单 + 每人一份简历 markdown(§7g,来源解耦)。**只读不触达**;真要联系走正常触达门(打招呼/畅聊,红线不变)。
+**输出**:排档短名单 + 每人一份简历 markdown(§7g,来源解耦)。**只读不触达**;真要联系走正常触达门(打招呼/畅聊,红线不变)。**⚠ 但"自动触达这份名单"不可靠**——搜索开聊没法定点找特定人(§7i 硬约束),只能机会主义;要可靠外发这批人,优先推荐通道免费打招呼或用户手动。
 
 **字段坑(2026-07-08,导 markdown 时注意)**:
 - geek/info 的 **edu 模块起止日期字段名与 work 段不同**(套用 work 的 `startYearMonStr`/`endYearMonStr` 会取空);`eduType` 返回**数字码**(0/1)非文本。导教育段前需重新核字段名。
 - 城市 cityCode:**深圳=101280600**(`geeks.json` 的 `city` 参数)。
+
+## 7i. ✅ 搜索开聊(畅聊)执行机制 + 🔴硬约束(2026-07-08 真机实测)
+
+**完整开聊流程(UI,实测跑通)**:
+1. 搜索结果卡 **hover 才现** `button.btn-chat`(class `btn btn-getcontact btn-chat`,`data-type=chat`)——browser-act `state` 索引不到,需 eval 先 dispatch `mouseover` 再取按钮;卡片本身 `<a ka=search_click_open_resume>` 点了是**新标签开 canvas 简历**,不是开聊。
+2. 点 `btn-chat` → 弹**「选择该牛人开聊职位」**弹层(列出你的在招岗,当前岗预选 `li.active`)。
+3. 选岗(默认已选)→ 点底部 **`搜索畅聊卡(N/M)`** 主按钮(`boss-btn-primary`)确认。
+4. 触发 **`POST /wapi/zpitem/web/searchChatCard/useCard/`** → 扣 N 张卡 + **自动发系统招呼**"你好,我司急聘{岗位}一职,请问考虑么?" + **PII 捆绑**(弹窗"已为您发起沟通并索要简历/微信/电话")。
+5. 弹窗「查看对话」→ 进会话页。**会话内补发定制开场白**:输入框是 contenteditable `.bosschat-chat-input`,**直接 set innerText 不触发 Vue**(发送键 `.btn-send` 保持 `btn-disabled`)→ 必须 `document.execCommand('insertText',false,msg)` 才注册、启用发送 → 三验后点 `.btn-send`。
+   - **收件人核验(三验①)**:开聊后姓名解码,读 **`.chatview-name`**(= 该牛人真名);发送前必核。
+
+**成本 / 余量(修正旧记)**:
+- **单次开聊成本 = 逐人不同 1~3 张**,读 geekCard 的 **`searchChatCardCostCount`**(不是固定 3;旧 §5/§2B "固定3"为误)。
+- **畅聊卡余量接口(§7d 一直缺的,现定位)**:`geeks.json` 响应顶层 **`chatCardCount`**(= 剩余)/`allChatCardCount`(总)。做卡预算直接读它,别再靠 DOM「剩余次数 xN」。
+
+**🔴 硬约束:搜索开聊无法"定点触达一个预先锁定的人"**(2026-07-08 撞墙实测):
+- 搜索 UI **关键词不过滤**(搜"垫话"/"Plaud" 都返回同一岗位池)、结果池**每次刷新随机 ~15 人**、**无翻页、滚动不加载更多** → 想 UI 里找某个特定候选人的卡,基本靠"这次刷没刷到"的运气。
+- **`useCard` 接口有反 CSRF**:raw XHR 直调被拒(返回 HTML、不扣卡),**必须走页面 JS 的 UI 点击**上下文。→ 没法"拿着 securityId 列表批量接口开聊"。
+- **结论**:**"以人找人→只读排档→导简历"全程可靠(接口/只读);但"自动触达一批搜索候选人"不可靠——只能对当次刷出来的人机会主义开聊,凑不齐指定名单。** 要可靠定向外发,用**推荐通道**(免费打招呼、真名、按岗,§2A)或让用户手动开聊。实测一轮:9人锁定→只随机刷到并触达了1人(某)。
 
 ## 8. 进度清单
 
