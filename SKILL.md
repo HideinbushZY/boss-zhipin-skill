@@ -24,11 +24,13 @@ metadata:
 - **单点操作**("帮我搜X/给谁打招呼/发个岗位/把这批人简历导markdown/**给你几份合适简历找类似的人**"):读 `operation-map.md`,直接按选择器/接口操作。"以人找人"(样本简历→相似候选人,只读)见 §7h;"导简历markdown"见 §7g。
 - **策略寻访**("按这个 JD/从这几家挖某类人/找具备X能力的人,帮我找"):读 `playbook.md`,把策略解析成 `strategies/<name>/strategy.yaml`,跑单轮管线(找→筛→触达→报告),状态写 `strategies/<name>/ledger.jsonl`,报告落 `reports/`。示例策略见 `strategies/asr-engineer-example/`。
 
-## 用前必做(3 步)
+## 用前必做(3 步 + 一键自检)
 
 1. **读同目录 `operation-map.md`** —— 完整页面地图、找人两通道、候选人漏斗状态机、成本额度、各流程选择器与确认框、踩坑速查、进度清单。这是本 skill 的核心。
 2. **换成你自己的浏览器 id**:`browser-act browser list` 查你的 chrome-direct 浏览器 id,**替换 operation-map 全文的 `<YOUR_BROWSER_ID>` 占位符**(注意 `<YOUR_BROWSER_ID>` 是占位符、不是可用 id,必须替换)。若还没有 chrome-direct 浏览器,先 `browser-act get-skills advanced` 按引导创建。
-3. **确认登录**:先开会话打开工作台——`browser-act --session <名> browser open <你的浏览器id> https://www.zhipin.com/web/chat/index --headed`;再 `browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回招聘者姓名(没开会话/页面不在 zhipin.com 时这条 eval 拿不到值)。
+3. **确认登录**:先开会话打开工作台——`browser-act --session <名> browser open <你的浏览器id> https://www.zhipin.com/web/chat/recommend --headed`(用推荐页,别用 `/web/chat/index`——冷加载会卡「加载中」,见下方铁律);再 `browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回招聘者姓名(没开会话/页面不在 zhipin.com 时这条 eval 拿不到值)。
+
+> **✅ 一键自检(推荐)**:直接跑 `bash verify-setup.sh <你的浏览器id>`,自动查 browser-act 装没装 / 浏览器 id 存不存在 / Boss 登没登录 / 招聘接口通不通,输出 pass/fail 并**区分"Chrome 没接上"和"没登录"**两种失败。全绿再让 agent 开跑;有 FAIL 按提示解决。
 
 ## 四条操作铁律(最容易踩错,踩了就失败/返工/发错人)
 

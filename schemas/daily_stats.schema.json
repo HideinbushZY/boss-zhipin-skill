@@ -16,6 +16,6 @@
     "read_rate": { "type": "number" },
     "diagnosis": { "type": "string", "description": "低于基线时的诊断(文案/人群/风控)" },
     "no_reply_streak": { "type": "integer", "description": "跨日累计连续无回复,驱动自动止损" },
-    "status_flag": { "type": "string", "description": "running / paused-no-reply / …" }
+    "status_flag": { "type": "string", "description": "running / paused_suspected_throttle（连续无回复达阈值自动止损，见 playbook §7）/ …" }
   }
 }

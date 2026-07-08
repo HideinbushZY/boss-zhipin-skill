@@ -15,7 +15,7 @@
 - **板块细节**:§4.1 关闭职位 · §4.2 发布(真源) · §4.6 互动 · §4.7 牛人管理 · §7b 发布踩坑
 - **接口层**:§7d 只读/健康检查/畅聊卡余量 · §7e 推荐+搜索+geek/info · §7f 全局去重
 - **单点能力/自动化**:§7c 沟通打招呼 · §7g 导简历markdown · §7h 以人找人 · §7i 搜索开聊机制+**定点搜索法**(独特关键词jobId=0;已开聊者自动隐藏)· §7j 推荐扫池群发
-- ⚠ 全文 69KB,单次 Read 会在 §7e 附近截断——要读某 §7x 用 grep 定位行号再定点 Read,别只凭首屏作答。
+- ⚠ 全文 70KB+,单次 Read 可能在中段截断——要读某 §7x 用 grep 定位行号再定点 Read,别只凭首屏作答。
 
 ---
 
@@ -83,7 +83,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 - 入口 `/web/chat/recommend`,标签:推荐 / 精选(带数字) / 最新。
 - 右上角**按职位切换**(显示"职位名_城市+薪资带"),推荐结果是算法针对该职位的匹配。
-- 卡片**显示候选人真名**(如"张伟 David(虚构示例)"),含年龄/经验/学历/求职状态/期望薪资/优势/工作经历时间线。
+- 卡片**显示候选人真名**(明文;下例"张伟 David"为虚构占位),含年龄/经验/学历/求职状态/期望薪资/优势/工作经历时间线。
 - 卡片直接有 **「打招呼」按钮**——走标准沟通额度,**不消耗畅聊卡**。
 - 适合:agent 每天先扫推荐流,匹配度达标的批量打招呼(规则内)。
 
@@ -259,7 +259,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **推荐牛人「打招呼」已验证**:点卡片 `button` 打招呼 → 弹「已向牛人发送招呼」,发的是**系统默认开场白**("你好,我司急聘XX一职,请问考虑么?"),非自定义。想个性化需进会话补发。卡片按钮随后变「继续沟通」。走标准额度,未见扣畅聊卡。
 - **会话内元素**(`/web/chat/index` 选中某会话):消息输入 `#boss-chat-editor-input`(contenteditable div,非 textarea)、发送 `.submit`、工具栏 `求简历`=`.operate-btn`、`约面试`=`.interview`、还有 换电话/换微信/不合适;候选人简历入口「在线简历」「附件简历」在会话头部;快捷回复气泡"你好啊可以聊一聊~"/"不好意思不太合适哦"。
 - **⚠️ 环境稳定性坑(2026-07-03)**:一次会话里连续 发职位→推荐打招呼→大量导航 后,`/web/chat/index`(沟通页 SPA)**反复卡在"加载中,请稍候"无法初始化**,同时 browser-act 的 chrome-direct **CDP 会话反复掉线**(一小段内掉 3 次,重开需 `--allow-restart-chrome`)。职位管理页能导航但聊天页起不来。当时**误判为软风控**。**后经验证:并非风控封号**(登录态一直有效,职位管理页正常),真实原因是**沟通页冷加载 URL 起不来**(见下条「关键破解」)+ CDP/MCP 断连churn。**保留的教训仍成立:操作要低频、分批、间隔;不要连续重启 Chrome(每次重启还可能触发登出)。**
-- 结果:①打招呼(候选人B(示例),对方[已读])②会话回复(候选人A(示例))③求简历(候选人A(示例))**三个已全部跑通** ✅。
+- 结果:①打招呼(候选人乙(示例),对方[已读])②会话回复(候选人甲(示例))③求简历(候选人甲(示例))**三个已全部跑通** ✅。
 - **关键破解**:沟通页**冷加载 URL(navigate 直达 `/web/chat/index`)会卡死在"加载中"**,但**从左侧菜单点「沟通」进入(应用内路由)则正常渲染**——重启 Chrome 后务必走菜单进入,别用直达 URL。
 - **⚠️ 桥掉线恢复姿势(2026-07-04 实测)**:关闭 session 后 chrome-direct 可能重连不上,`browser open` 一律报 `230404 Unknown error`,连 `--allow-restart-chrome` 也报错——这是 **browser-act 控制面**问题(此时 `stealth-extract` 仍正常=cloud API 没挂;`curl localhost:9222/json/version` 返回空/404=旧调试口是僵尸)。**别急着 kill 用户 Chrome**(登出需手机扫码,不可逆)。恢复步骤:①`osascript -e 'tell app "Google Chrome" to count windows'` 确认 Chrome 已就绪且能被 AppleScript 控制(mid-restore 时会 -1712 超时,等它稳定);②Chrome 稳定后用 **`browser open <id> <url> --headed --allow-restart-chrome`** 重试即可恢复。核心:失败多因 Chrome 忙于恢复标签页,等就绪再带 `--headed --allow-restart-chrome`。
 - **🔴 0 窗口时别 restart,会登出(2026-07-05 实测,踩过)**:若 `count windows` 返回 **0**(用户把 Chrome 窗口都关了,进程还在)或报 `CDP permission retry window expired`,**此时 `open -a` 新开窗 + `--allow-restart-chrome` 有很大概率把 Boss 登录态冲掉**——登出后是微信扫码/短信验证码页(`/web/user/?ka=bticket`),agent 代替不了,必须用户手机重登。**对策**:0 窗口时**先只 `open -a "Google Chrome"` 把已有窗口/会话唤起、等 5-8 秒,先不加 `--allow-restart-chrome` 试 attach**;能连上就别 restart。实在要 restart 前,先确认这是"桥僵尸"而非"窗口全关",宁可停下让用户手动把 Boss 标签页点出来,也别赌 restart。登出=不可逆(需用户扫码),代价远高于多等一会。
@@ -312,7 +312,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - `searchChatCardCostCount` = 触达要几张畅聊卡(推荐通道通常 0=免费打招呼);
   - `hasAttachmentResume`、`recommendReason`;
   - `geekCard{ geekName, geekGender, geekWorkYear(经验年), geekDegree, freshGraduate(应届), geekDesc(优势自述), lowSalary/highSalary/salary(期望薪资), expectPositionName(期望职位), expectLocationName(期望城市), ageDesc, geekEdus(教育), geekWorks(工作经历), encGeekId, securityId(动作 token,打招呼/开聊要用) }` —— **就是 DOM 卡片上的全部信息,但是干净 JSON**。
-- **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(如 `0a1b2c3d4e5f6g78hIJK-9LmN(虚构示例,格式相仿)`),账号/职位相关,别硬编码。
+- **encJobId 怎么拿**:滚动推荐列表时抓包这个请求的 `jobId=` 即得;或选中职位后从 recommend iframe 的 `?jobid=` / `rec/f1/card?jobId=` 请求里取。是加密串(格式如 `0a1b2c3d4e5f6g78hIJK-9LmN`,此为虚构占位),账号/职位相关,别硬编码。
 - **筛选参数**:age/degree/experience/salary 等直接对应 hard_filters(格式如 `age=16,-1` 区间、`degree/experience/salary=0` 表不限),接口筛比页面点更精确。
 
 ### 🟢 搜索通道(主路径,2026-07-06 实测)—— 接口反而比 DOM 干净,直接跳过"清默认"这套 UI 操作
@@ -349,7 +349,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 2. **账本交叉比对(跨通道/搜索/inbound)**:对接口没给 haveChatted 的人(如搜索命中的打码人),用 ledger 里 `status∈{greeted,chatted,replied,resume_received,contact_exchanged}` 的人做匹配:键=`(geekName 或打码名前缀) + 最近公司 + 期望`,相似即判重复(打码名↔真名可能同一人,命中标 `possible_dup` 人工确认)。
 3. ledger 建议加 `last_touched_date` 字段,配合"同一人 24h 内不重复触达"的软规则。
 **为什么要紧**:同一候选人短时被多次打招呼(跨策略/跨同事)极易触发爬虫风控,还砸雇主品牌——这是 silent killer。
-- **实战侧记**:候选人A(示例)(初判弱匹配)收到求简历后**发来附件简历**并在回复里补充了履历上看不到的语音实战(asr/vad/tts/kws 均做过)——实际比履历显示的更对口,说明**对话探询能挖出履历外的匹配信息**,是筛选环节的价值点。
+- **实战侧记**:候选人甲(示例)(初判弱匹配)收到求简历后**发来附件简历**并在回复里补充了履历上看不到的语音实战(asr/vad/tts/kws 均做过)——实际比履历显示的更对口,说明**对话探询能挖出履历外的匹配信息**,是筛选环节的价值点。
 
 ## 7g. ✅ 候选人 → 简历 markdown 导出(单点能力,与来源解耦)
 

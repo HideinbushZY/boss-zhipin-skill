@@ -6,6 +6,8 @@
 
 `License: MIT` · `Platform: Boss直聘 (zhipin.com), recruiter side` · `Driver: browser-act (chrome-direct)`
 
+📖 **先看用起来什么样 → [`DEMO.md`](DEMO.md)**(合成示例走查,两种触发)｜⚙️ 一键自检 → `bash verify-setup.sh <你的浏览器id>`
+
 ---
 
 ## English (TL;DR)
@@ -16,7 +18,7 @@
 
 **Prerequisites.** (1) the [browser-act](https://github.com/browser-act/skills) CLI (or any equivalent that can take over a logged-in Chrome via CDP, read the DOM, and do real clicks); (2) a logged-in Boss直聘 **recruiter** account, accessed via browser-act's `chrome-direct`; (3) a Claude-class agent as the brain.
 
-**Setup (3 steps).** Drop `boss-zhipin/` into your skills dir → replace the `<YOUR_BROWSER_ID>` placeholder (run `browser-act browser list`) → verify login. See the Chinese sections below for the full operational detail.
+**Setup (3 steps + self-check).** Drop `boss-zhipin/` into your skills dir → replace the `<YOUR_BROWSER_ID>` placeholder (run `browser-act browser list`) → run `bash verify-setup.sh <your_browser_id>` (checks browser-act / browser id / Boss login / API reachability, prints pass·fail). See the Chinese sections below for the full operational detail.
 
 > ⚠ **The operational docs are in Chinese on purpose** — Boss直聘's UI is Chinese and the selectors match Chinese on-page text, so the how-to-click content stays in Chinese. This English section is for discoverability; the working knowledge is in `SKILL.md` / `operation-map.md` / `playbook.md`.
 
@@ -48,7 +50,8 @@
 
 1. 把 `boss-zhipin/` 整个文件夹放进你的 skills 目录(如 `~/.claude/skills/boss-zhipin/`),或直接让 agent 读 `SKILL.md` 入口。
 2. **换浏览器 id**:`browser-act browser list` 查你自己的 chrome-direct id,**替换 operation-map 全文的 `<YOUR_BROWSER_ID>` 占位符**。若还没有 chrome-direct 浏览器,`browser-act get-skills advanced` 按引导建。
-3. **确认登录**:先开会话——`browser-act --session <名> browser open <你的浏览器id> https://www.zhipin.com/web/chat/index --headed`;再 `browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回你的招聘者姓名(Boss 登录本身要手机扫码,只能人来做)。
+3. **确认登录**:先开会话——`browser-act --session <名> browser open <你的浏览器id> https://www.zhipin.com/web/chat/recommend --headed`(用推荐页,`/web/chat/index` 冷加载会卡);再 `browser-act --session <名> eval "document.querySelector('.user-name')?.textContent"` 应返回你的招聘者姓名(Boss 登录本身要手机扫码,只能人来做)。
+4. **一键自检(推荐)**:`bash verify-setup.sh <你的浏览器id>` —— 自动核 browser-act / 浏览器 id / 登录态 / 接口通不通,输出 pass/fail(会区分"Chrome 没接上"和"没登录")。全绿再开跑。
 
 ## 怎么用(两种触发)
 
