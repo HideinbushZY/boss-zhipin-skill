@@ -21,7 +21,7 @@ metadata:
 
 ## 两种用法
 
-- **单点操作**("帮我搜X/给谁打招呼/发个岗位"):读 `operation-map.md`,直接按选择器操作。
+- **单点操作**("帮我搜X/给谁打招呼/发个岗位/把这批人简历导markdown/**给你几份合适简历找类似的人**"):读 `operation-map.md`,直接按选择器/接口操作。"以人找人"(样本简历→相似候选人,只读)见 §7h;"导简历markdown"见 §7g。
 - **策略寻访**("按这个 JD/从这几家挖某类人/找具备X能力的人,帮我找"):读 `playbook.md`,把策略解析成 `strategies/<name>/strategy.yaml`,跑单轮管线(找→筛→触达→报告),状态写 `strategies/<name>/ledger.jsonl`,报告落 `reports/`。示例策略见 `strategies/asr-engineer-example/`。
 
 ## 用前必做(3 步)
