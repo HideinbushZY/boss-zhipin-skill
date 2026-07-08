@@ -134,7 +134,7 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
 Step 6  触达(按 touch_policy)  [§5 / operation-map §7j 推荐扫池群发]
   · **主引擎=推荐通道"扫池群发"(免费、可靠,§7j)**:对 Step1 枚举出的推荐池、经 Step3 去重(haveChatted/isFriend==0)+ Step4 打分达标的人,逐个在 recommendFrame 卡上点 `button.btn-greet`(**一键、无确认弹层**,发系统模板"你好,我司急聘{岗位}一职,请问考虑么?",走标准额度**不扣卡**)。**无批量端点 → 逐卡循环点**;每个之间留间隔。
   · **额度闸**:日限 200 沟通,开跑前算 `剩余=200−todayData.chatInitiative`(§7d);逐个记数,到剩余=0 停,别硬闯。
-  · **⚠ 这是"扫合格池群发",不是"发给指定名单"**:推荐/搜索都无法可靠定点触达某几个预先锁定的人(§7i/§7j);要 pitch 特定某人只能人工。
+  · **走量 vs 定点**:本步(推荐扫池群发)是**走量**;要**定点触达某几个指定的人**,走搜索定点法(清污染 jobId=0 + 该人独特关键词精准置顶 → UI 开聊,operation-map §7i;已开聊者自动从搜索隐藏、不用手动去重)。两者都可自动,别再当"定点做不到"。
   · 搜索来的(打码人)按 budget.chat_cards 逐张记账,超停(耗畅聊卡+PII捆绑,§7i;成本逐人1-3张读 searchChatCardCostCount)
   · 开聊前看"同事沟通进度",不重复 pitch
   · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板
