@@ -89,7 +89,7 @@ Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
   · **跑前校验**:`python3 validate.py strategies/<name>/` —— 过了再跑,把"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range"这类配置错挡在早期(schema 见 schemas/,校验器不依赖 jsonschema)
   · 登录:eval .user-name 有值(⚠ 浏览器 id 用你自己的,SKILL.md §用前必做)
   · 每日打招呼额度:**接口优先(2026-07-07)**——`privilege/my/detail` 每日沟通总量(200) − `recruitDataCenter/get.json` 的 `todayData.chatInitiative`(今日已打招呼)= 剩余(见 operation-map §7d);DOM 兜底=读 data-recruit 的「沟通 X/200」。剩余<~10 就收/停,别撞上限触软风控
-  · 畅聊卡余量:搜索结果详情右侧「畅聊卡 剩余次数 xN」或按钮「搜索畅聊卡(3/N)」的 N;开聊=3卡/次,预算按 3/开聊 折算
+  · 畅聊卡余量:**接口** `geeks.json` 顶层 `chatCardCount`(operation-map §7d/§7i);单次开聊成本逐人 1~3 张(读 `searchChatCardCostCount`),预算按每人实际消耗折算,别按固定 3
   · 风控体感:聊天页反复"加载中"/额度异常/动作被拒 → 疑似软风控,停手冷却
   → 任一不足(未登录/额度剩<本轮预算/疑似风控)→ 停,报告
 
@@ -128,8 +128,8 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
     `GET /wapi/zpitem/web/boss/search/geek/info?securityId={securityId}&query={关键词}&encryptGeekDetailGray=1` → `zpData.geekDetail` 是**明文结构化简历**(§7e)。**免费、零外发**。⚠ 别靠 DOM 点结果卡读详情——那是新标签+canvas 反爬,读不到(§2B)。
   · **DOM 兜底**:仅接口异常时才降级 §2B DOM 搜索(清默认预选 + searchFrame);DOM 只在"真开聊触达"时碰。
   · 去重:`geeks.json` 的 `friendRelationStatus`/`geekCallStatus` 命中即已联系过,skip(§7f)。
-  · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);拿不准就先 `geek/info` 免费读全文简历再定,≥门槛才进触达。
-  · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
+  · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费信号打质量分**,<min_score 不开卡(打码人信号糙,1~3卡/次别冲动);拿不准就先 `geek/info` 免费读全文简历再定,≥门槛才进触达。
+  · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(逐人1~3卡/次,读searchChatCardCostCount,+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5 / operation-map §7j 推荐扫池群发]
   · **主引擎=推荐通道"扫池群发"(免费、可靠,§7j)**:对 Step1 枚举出的推荐池、经 Step3 去重(haveChatted/isFriend==0)+ Step4 打分达标的人,逐个在 recommendFrame 卡上点 `button.btn-greet`(**一键、无确认弹层**,发系统模板"你好,我司急聘{岗位}一职,请问考虑么?",走标准额度**不扣卡**)。**无批量端点 → 逐卡循环点**;每个之间留间隔。
@@ -195,7 +195,7 @@ Step 7  写账本 + 报告          [§6 §7]
 ## 6. 账本 ledger.jsonl(状态机 = 增量根基)
 
 每候选人一行 JSON。**首轮若文件不存在先 Write 建空。** 状态机(覆盖账本实际用到的所有 status):
-`found`(搜索命中未触达)`→ scored → greeted`(打招呼)`/ chatted`(畅聊卡开聊)`→`〔打招呼/开聊后候选人**未回复**时=`pending-reply` 状态,求简历还发不了,见 §5〕`→ replied`(对方回复、进「沟通中」,求简历解锁)`→ resume_received → contact_exchanged → interview → hired`。
+`found`(搜索命中未触达)`→ scored → greeted`(打招呼)`/ chatted`(畅聊卡开聊)`→`〔打招呼/开聊后候选人**未回复**时=`pending-reply` 状态,求简历还发不了,见 §5〕`→ replied`(对方回复、进「沟通中」,求简历解锁)`→ resume_requested`(已点求简历、等对方发)`→ resume_received → contact_exchanged → interview → hired`。（`resume_requested` 是 validate.py/schema 认的合法态,别漏用）
 旁路:`unfit`(命中 reject / C 淘汰)`/ no_reply / unscored`(数据不足待补)`/ inbound_msg`(对方主动来招呼、待处理)。
 
 **去重键**:优先稳定 id;否则 `(name 或打码名前缀) + 最近公司 + 期望`多信号比对。**打码名(搜索)↔真名(推荐)可能是同一人**→ 命中相似即标 `possible_dup` 人工确认,不静默双跑(省额度/卡)。
@@ -250,7 +250,7 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 
 这些是执行层待补,遇到时优雅降级、别硬撞:
 - ~~搜索页默认预选清除选择器~~ **✅ 2026-07-05 已验证补齐**(关键词/职位/城市三件套,见 operation-map §2B;城市默认空不污染)。
-- ~~Step 0 健康指标无选择器~~ **✅ 2026-07-05 已验证**(每日打招呼额度=data-recruit iframe「沟通 X/200」、畅聊卡余量=搜索详情「剩余次数 xN」,见 operation-map §7d)。
+- ~~Step 0 健康指标无选择器~~ **✅ 2026-07-05 已验证**(每日打招呼额度=data-recruit iframe「沟通 X/200」、畅聊卡余量=geeks.json 顶层 chatCardCount 接口,见 operation-map §7d/§7i)。
 - ~~full 档求简历异步闭环~~ **✅ 2026-07-05 已定义扫回执**(沟通中 tab ∩ ledger greeted/chatted → 求简历,见 Step 0.5 + operation-map §7c)。
 - **约面(`.interview`)发起流程仍未实测**(用户暂缓;红线不自动,但操作本身待文档化)。
 - **接口层**:推荐 `rec/geek/list` + 搜索 `geeks.json` 已作主路径(operation-map §7e);**互动 `interaction/bossGetGeek`(§4.6)+ 牛人管理漏斗 `friend/manage/geekListV2?workflow=`(§4.7)也是干净 REST**。**扫回执/查进展优先走 geekListV2(按漏斗态拉名单+lastMsg/lastTS)或推荐接口 haveChatted,DOM 漏斗退为兜底**;只有**逐条消息收发**才是 WebSocket、无 GET REST(§7e🟡)。
@@ -260,6 +260,7 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 
 ## 11. 运营智能层(intelligence,可选;custom_greetings/feedback/salary_leverage 默认关,card_prescreen 默认开)
 
+> ⚠ **本层逻辑经离线真实数据验证、未真机整轮外发实测(见 operation-map §8)**;首次启用按未测能力谨慎跑、盯首轮回执。
 > 四个功能把引擎从"会点按钮"升到"懂招聘":薪资框架(§4 打分·产人)→ 定制招呼语(Step 6·发文案)→ 反馈环(Step 6.5·收数据反哺前两者)+ 花卡预判(§11.4·Step 5 开卡闸)。在 strategy.yaml 的 `intelligence:` 块里各有 `enabled` 开关:**前三个默认 `false`,card_prescreen 默认开(只省钱不外发)**;关时管线按老逻辑走,开时才挂载对应逻辑。建议上线顺序:①反馈环 → ②招呼语 → ③薪资(先装仪表盘、再优化油门、最后改发动机)。
 >
 > **🔴 铁律:能自动的只有"读和算"**——聚合数据、算回复率、评稀缺度、生成招呼语**草稿**、疑似风控时**自动暂停止损**(唯一的自动写动作,方向是"停")。**凡往外走或改策略的都要用户点头**:发招呼语(逐条 Y/N/编辑)、改预算/greets、破格加薪(勾同意下轮才触达)、改搜索词——一律只出建议。
@@ -292,10 +293,10 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - 例(某13年纯血ASR候选人(示例),13年纯血ASR,期望超带30K):scarcity 8.5 ≥ 7.5 → 破格候选,"建议加薪至 57.5K(弹性上限)或 60K(期望下限),需授权"。
 
 ### 11.4 掩码候选人花卡前质量预判(card_prescreen)— 挂在搜索通道触达前(默认开,只省钱不外发)
-搜索畅聊卡开聊 = **3卡/次 + 捆绑索要 PII**,而搜索结果是打码人、信号纯度低(实测有滥竽充数,如"22年经验投ASR的后端")。花卡前先用**接口免费拿到的四信号**(`geekCard` 里的 公司/城市/学历/年龄 + `friendRelationStatus`)打一个"质量分",别看到打码 A 就冲动开卡。
+搜索畅聊卡开聊 = **逐人1~3卡/次(searchChatCardCostCount)+ 捆绑索要 PII**,而搜索结果是打码人、信号纯度低(实测有滥竽充数,如"22年经验投ASR的后端")。花卡前先用**接口免费拿到的四信号**(`geekCard` 里的 公司/城市/学历/年龄 + `friendRelationStatus`)打一个"质量分",别看到打码 A 就冲动开卡。
 - **质量分(0-10,粗判是否值得花卡,不是最终 rubric)**:公司对口/知名 +2、城市命中 hard_filters +2、学历达标 +1.5、经验在 3-10 区间 +1.5、优势文案含岗位核心词 +2、`friendRelationStatus`=已联系 → 直接 0(去重)。
 - **门槛**(strategy 可配 `intelligence.card_prescreen.min_score`,默认 6):≥6 建议开卡;3-6 报告里列"待定,人工看要不要花卡";<3 不建议开、不进 budget。
-- 这一步**纯读接口 + 算分,零外发、零红线**,是把"3卡/次"这笔真金白银用在刀刃上。实测能减 20-30% 无效卡。
+- 这一步**纯读接口 + 算分,零外发、零红线**,是把开聊畅聊卡这笔真金白银用在刀刃上。**预计**可减 20-30% 无效卡(离线逻辑验证,§11 未真机整轮实测,见 §8)。
 - 默认 `enabled: true`(它只会**减少**花卡,越保护越好;要全量开卡可关)。
 
 ---

@@ -8,6 +8,17 @@
 
 ---
 
+## 🗺️ 速查目录(§7b–§7j 是按时间追加的专题,不是 §7 的子节)
+
+- **§0** 关键技术事实必读 · **§1** 页面地图 · **§3** 候选人漏斗/状态机 · **§5** 成本额度 · **§6** 安全门/红线 · **§8** 进度清单
+- **找人两通道**:§2A 推荐(免费/真名/按岗) · §2B 搜索(耗卡/打码)
+- **板块细节**:§4.1 关闭职位 · §4.2 发布(真源) · §4.6 互动 · §4.7 牛人管理 · §7b 发布踩坑
+- **接口层**:§7d 只读/健康检查/畅聊卡余量 · §7e 推荐+搜索+geek/info · §7f 全局去重
+- **单点能力/自动化**:§7c 沟通打招呼 · §7g 导简历markdown · §7h 以人找人 · §7i 搜索开聊机制+硬约束 · §7j 推荐扫池群发
+- ⚠ 全文 69KB,单次 Read 会在 §7e 附近截断——要读某 §7x 用 grep 定位行号再定点 Read,别只凭首屏作答。
+
+---
+
 ## 0. 关键技术事实(agent 必读)
 
 - **登录/接管**:chrome-direct 首次需 `browser open ... --allow-restart-chrome`(重启 Chrome 开调试端口,会丢未保存网页)。登录态在磁盘,重启不丢。
@@ -62,13 +73,13 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 > **① 架构 + 按岗**:UI 在 `iframe[name=recommendFrame]`(冷加载也"加载中,请稍后",要等/走菜单进)。推荐是**针对"当前选中岗"的算法匹配**——右上角**岗位切换器**(显示"岗位名_城市+薪资带")+ 城市 + 筛选。**推荐默认岗 ≠ 搜索默认岗**(两通道各记各的当前岗)。
 > **② tabs**:推荐(默认)/ 最新(/ 有时"精选"带数字)。
 > **③ 卡片 = 真名 + 完整画像全内联**(和搜索的打码+canvas反爬**完全两样**):**真实姓名**(不打码)、年龄/经验/学历/求职状态/期望城市+职位/薪资/优势自述/**完整工作经历+教育时间线**/命中标签——**全在卡上直接可读,不用开详情、无 canvas 反爬**。
-> **④ 打招呼**:每张卡右侧「打招呼」按钮,**免费**(走标准沟通日额度 200/天,不耗畅聊卡;接口字段 `searchChatCardCostCount=0`),发的是系统模板开场白(想定制→打招呼后会话内补发,§11.1/§7c)。
+> **④ 打招呼**:每张卡右侧「打招呼」按钮,**免费**(走标准沟通日额度 200/天,不耗畅聊卡;接口字段 `searchChatCardCostCount=0`),发的是系统模板开场白(想定制→打招呼后会话内补发,playbook §11.1/§7c)。
 > **⑤ 接口主路径 = `rec/geek/list?jobId={encJobId}&page=1`**(仍有效;页面自己渲染另用 `rec/f1/card`,裸调 XHR 返回空 zpData、要页面上下文,别拿它当列表源):
 >   - 响应 `zpData.geekList[]`(**每页 15**)+ `zpData.hasMore`(翻 page=1,2,3… 到 false 拿全量,**无虚拟滚动、无 state 索引退化**)。
 >   - 每个 geek:geek 级 `haveChatted`/`isFriend`/`geekCallStatus`(**去重标**,§7f)+ `geekLastWork`/`showEdus` + `geekCard{ geekName(真名), geekGender, geekWorkYear, geekDegree, freshGraduate, geekDesc(优势), salary/lowSalary/highSalary, expectPositionName, expectLocationCode, securityId(动作 token,~696字符), encGeekId … }`。
 >   - `encJobId` 怎么拿:抓包 `rec/f1/card`/`rec/geek/list` 的 `jobId=`,或从推荐 iframe 取。
 > **⑥ 去重**:geek 级 `haveChatted==1`/`isFriend==1` → 已接触直接 skip(§7f,Boss 官方口径最准)。推荐是**真名**,可直接和搜索的打码人跨通道对齐(打码↔真名难题在推荐侧不存在)。
-> **⑦ vs 搜索(一句话)**:推荐=**被动/免费/按岗/真名/卡片自带全画像/不用详情接口**;搜索=主动/付费(3卡+PII捆绑)/全库/打码/详情 canvas 反爬要走 `geek/info`。**能推荐就别搜索**(省卡),推荐覆盖不到才搜。
+> **⑦ vs 搜索(一句话)**:推荐=**被动/免费/按岗/真名/卡片自带全画像/不用详情接口**;搜索=主动/付费(1~3卡+PII捆绑)/全库/打码/详情 canvas 反爬要走 `geek/info`。**能推荐就别搜索**(省卡),推荐覆盖不到才搜。
 
 - 入口 `/web/chat/recommend`,标签:推荐 / 精选(带数字) / 最新。
 - 右上角**按职位切换**(显示"职位名_城市+薪资带"),推荐结果是算法针对该职位的匹配。
@@ -104,7 +115,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - 关键词框 `input[maxlength=20]` + `i.icon-search` 执行(输入会弹 suggest 下拉,按原词搜就点 icon,别选下拉)。清空关键词框用 browser-act `keys "cmd+a"` + `keys "Backspace"`(React 受控输入,别 eval 设 value);城市框是另一个 `input`(在 `.search-city-kw` 内)。
 - **⚠️ 职位下拉决定"打招呼归属的岗位"(2026-07-04 实测)**:搜索页的职位 dropdown(`.search-current-job`)默认可能是账号别的岗位。**你在搜索结果里点打招呼,招呼是发给"当前选中职位"的**——所以搜 ASR 人之前**必须把职位下拉改成"语音识别(ASR)算法工程师"**,否则会把人约到错的岗位。下拉项:不限职位 / 你的各在线职位。
 - **✅ 全局牛人搜索确实可用(2026-07-04 更正 round-3 的误判)**:输入公司名(你的目标公司)或关键词→点 icon-search→**去 `searchFrame` 读结果**,能搜到全库牛人(masked 打码名+"热搜"标)。round-3 搜"会议转写"以为无效,真因是①关键词太窄命中少、②读错 frame(读了 recommendFrame)。**公司名命中很足**;结果卡是 `a[parent_class=geek-info-card]`,点开=候选人详情(含工作经历、期望城市)。
-- **⚠️🔴 搜索畅聊卡「开聊」= 捆绑动作,自动索要微信/电话(2026-07-04 实测,红线警告)**:搜索结果详情里的大按钮 `button.btn-sure-v2`「搜索畅聊卡(N/17)」**不是普通打招呼**——点它=**消耗 3 张搜索畅聊卡** + **系统一键"发起沟通并索要简历/微信/电话"**(开聊成功提示原文:"已为您发起沟通并索要简历/微信/电话,该牛人已开通虚拟电话可直接联系")。**即畅聊卡开聊内置了 换微信/换电话 的 PII 请求**,落在永久红线里。**用畅聊卡前必须先向用户确认接受这个捆绑**;按钮紧挨 举报/不合适,认准 `btn-sure-v2` 再点。**💰成本:每次开聊消耗 3 张搜索畅聊卡(不是1张)——按钮标"搜索畅聊卡(3/N)"里的 3=单次消耗、N=剩余(实测 17→14)。做卡预算换算时按 3/开聊 算(4 卡预算=只够 1 次开聊)。**账号搜索畅聊卡余量在详情右侧"畅聊卡 剩余次数 xN"。
+- **⚠️🔴 搜索畅聊卡「开聊」= 捆绑动作,自动索要微信/电话(2026-07-04 实测,红线警告)**:搜索结果详情里的大按钮 `button.btn-sure-v2`「搜索畅聊卡(N/17)」**不是普通打招呼**——点它=**消耗畅聊卡(逐人 1~3 张,见下)** + **系统一键"发起沟通并索要简历/微信/电话"**(开聊成功提示原文:"已为您发起沟通并索要简历/微信/电话,该牛人已开通虚拟电话可直接联系")。**即畅聊卡开聊内置了 换微信/换电话 的 PII 请求**,落在永久红线里。**用畅聊卡前必须先向用户确认接受这个捆绑**;按钮紧挨 举报/不合适,认准 `btn-sure-v2` 再点。**💰成本:单次开聊消耗逐人不同 1~3 张(2026-07-08 修正,读 geekCard 的 `searchChatCardCostCount`;非固定 3)——按钮标"搜索畅聊卡(N/M)"里 N=该人消耗、M=剩余。做卡预算按每人实际 `searchChatCardCostCount` 折算,别按固定 3。** 余量走接口 `geeks.json` 顶层 `chatCardCount`(§7i,别再读 DOM「剩余次数 xN」)。
 - 筛选:学历 `span.degree-item`、年龄 `span.age-item`(单选,active class 标当前);更多筛选含薪资/院校等。
 - 排序:综合排序(默认)/ 活跃优先 / 匹配度优先。**综合排序动态洗牌**,回找特定人要靠"关键词+年龄+学历"组合逼近。
 - 结果卡容器 `li.geek-info-card`(内含 `<a parent_class=geek-info-card>`),姓名打码(如 张**);列表**虚拟滚动**(一次渲染 2-4 张,逐屏滚)。
@@ -185,7 +196,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - `workflow` = 漏斗列(URL 编码;单聊=`%E5%8D%95%E8%81%8A`)。响应 `zpData`:`result[]`(15/页)+ **`total`(该漏斗态总数)** + `page`/`pageSize`。
   - 每个 geek:`name`(打码/会话名)+ `securityId`(可喂 §7e geek/info 取全文详情)+ `avatar` + `sourceTitle` + `relationType`/`friendSource`/`sourceType`(关系来源)+ **`lastMsg`/`lastMessageInfo`/`lastTime`/`lastTS`(末条消息+时间=会话状态)** + `jobId`/`encryptJobId`(哪个岗)+ `isTop`。
   - 配套接口:`friend/label/get`(标签列表)、`job/chatted/jobList`(有会话的岗位列表)。
-- **这是 §11.2 反馈环 + 扫回执(§7c)的接口级数据源**:按 `workflow` 拉各漏斗态名单 + `lastMsg/lastTS` 判回执进展,**不用再逐个点 DOM 会话**(比 §7c DOM 扫回执干净)。`name` 是打码/会话名,跨通道对齐仍看 §7f。
+- **这是 playbook §11.2 反馈环 + 扫回执(§7c)的接口级数据源**:按 `workflow` 拉各漏斗态名单 + `lastMsg/lastTS` 判回执进展,**不用再逐个点 DOM 会话**(比 §7c DOM 扫回执干净)。`name` 是打码/会话名,跨通道对齐仍看 §7f。
 
 ### 4.8 面试 `/web/chat/report/interview`
 - 月历(列表/宫格切换),绿标=已约面;当前暂无面试。**约面动作在会话内发起**,结果汇总到此日历。
@@ -233,25 +244,13 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 
 ---
 
-## 7b. 发布职位流程(2026-07-03 实操,含踩坑)
+## 7b. 发布向导·踩坑速查(完整流程见 §4.2,本节只记坑)
 
-**表单结构**(`/web/chat/job/edit`,内容在同源 iframe,可 contentDocument 直读):
-- 职位名称 `input[name=jobName]`;职位描述 `textarea`(用 value setter + input 事件写多行);职位类型 `input[name=jobCategory]`(点开弹「请选择职类」模态,搜索框搜"语音"→选 `li` **语音算法**,ASR 岗准确类目;无"语音识别"叶子)。
-- 招聘类型默认「社招全职」、驻外默认「境内岗位」——通常无需改。
-- 第2步:经验/学历/薪资均为 `.ui-select-selection` 自定义下拉,**必须用 browser-act state 索引点 `li.ui-select-item`**(eval 点 option 不稳)。
-- 薪资三联下拉:最低/最高/月数(30-50K·14薪);**最低选完会联动改最高的默认值**,务必按 最低→最高→月数 顺序逐个校验(读 `.ui-select-selected-value`)。
-- 工作地址:账号预填(账号会预填你公司的工作地址→城市);简历接收邮箱 (你账号配置的简历接收邮箱)。
-- 底部「发布」按钮提交(发布后 招聘类型/职位名称/职位类型/工作城市 锁死)。
+> 发布的**完整分步流程以 §4.2 为唯一真源**(2026-07-07 真机过审实测);本节只留 §4.2 之外的易变/风险踩坑,别在这重复字段填法。
 
-**发布成功后**:弹出付费「曝光刷新卡」(¥328,扫码支付)——**可选付费,直接关 `.boss-popup__close` 不付**;职位列表页顶部也会有"去升级"倒计时同类推销。新职位状态「开放中」,平台审核后对候选人可见。✅ 全流程 2026-07-03 已完整跑通一次。
-
-**几个易变索引经验**:类目/经验/学历/薪资下拉的 state 索引每次操作后会变,每步都要重新 grep;`.ui-select-item` 选项可能在下拉内需 `scrollIntoView` 才进 state;月数下拉的 `.ui-select-dropdown` 有时 state 抓不到,可用 `eval` 过滤 `offsetParent!==null` 的可见 dropdown 直接 `.click()`;工作地址弹「请选择工作地址」列出你账号已存的工作地址(可能多个),点目标城市对应的「使用该地址」,城市由此决定。
-
-**⚠️ 重大坑(2026-07-03 实测):** 在薪资下拉反复用 eval 点选时,某次误触打开了 **C 端首页(zhipin.com/)新标签**,导致 browser-act 焦点切到新页 + **招聘者登录态掉线**(跳 `/web/user/?ka=bticket` 扫码登录,user=NONE),**已填表单草稿全部丢失,无自动草稿**。教训:
-1. 下拉优先用 **state 索引点 `li.ui-select-item`**,不要用 eval 遍历点 option(易误触旁边链接/跳页)。
-2. 每步操作后 `eval "location.href"` 确认没跳出 `/web/chat/job/edit`。
-3. 发布表单**无草稿保护**,掉线=重填;填表期间不要触发任何可能开新标签的点击。
-4. 掉线后 re-login 需用户手机(扫码/验证码),agent 无法代做 → 属人工接管场景。
+- **自定义下拉(经验/学历/薪资/职类)**:`.ui-select-selection`,**必须用 browser-act state 索引点 `li.ui-select-item`**,eval 点 option 不稳;state 索引**每步操作后会变,每步重新 grep**;选项在下拉内可能需 `scrollIntoView` 才进 state。
+- **薪资三联下拉**:最低→最高→月数顺序;**选最低会联动改最高默认值**,逐个读 `.ui-select-selected-value` 校验。月数下拉的 `.ui-select-dropdown` 有时 state 抓不到,可 `eval` 过滤 `offsetParent!==null` 的可见 dropdown 直接 `.click()`(portal 渲染,§4.2)。
+- **⚠️ 重大坑:发布表单无草稿保护(2026-07-03 实测)**:薪资下拉反复 eval 点选时曾误触打开 C 端首页新标签 → browser-act 焦点切走 + **招聘者登录态掉线**(跳 `/web/user/?ka=bticket`,user=NONE),**已填草稿全丢、无自动保存**。教训:① 下拉只用 state 索引点、别 eval 遍历 option(易误触旁链跳页);② 每步 `eval "location.href"` 确认没跳出 `/web/chat/job/edit`;③ 填表期间别触发任何可能开新标签的点击;④ 掉线 re-login 需用户手机扫码,agent 代不了=人工接管。
 
 ## 7c. 沟通/打招呼流程(2026-07-03 部分实测)
 
@@ -282,7 +281,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **账号权益**(顶栏,右侧滑出面板,非新标签):企业版,职位发布权益 **5 个在线职位**;**每日使用权益:主动查看=不限 / 沟通总量=200 个 / 回复=不限**。→ 打招呼/沟通日限=**200/天**,查看和回复不限。
 - **招聘数据**(`/web/chat/data-recruit`):日报/周报/月报/VIP权益数据;今日概览 8 指标(我看过/看过我/我打招呼/牛人新招呼/我沟通/收获简历/交换电话微信/接受面试,均带昨日对比)+ 趋势图(近7天/近30天/自定义)。招聘漏斗看板。
 - **✅ 运营数据接口(2026-07-07 实测——健康检查/反馈环走接口,别爬看板 DOM)**:
-  - **今日漏斗指标**:`GET /wapi/zpboss/h5/weeklyReportV3/recruitDataCenter/get.json?jobId=0&platform=1&date=`(jobId=0=全部岗)→ `zpData.todayData`:`view`(我看过)/`viewed`(看过我)/`chatInitiative`(我打招呼)/`contactMe`(牛人新招呼)/`chat`(我沟通)/`resume`(收获简历)/`exchangePhoneAndWeiXin`(交换电话微信)/`interviewAccept`(接受面试),每个都带 `xxxCTY`(较昨日)+ `chatInitiativeRightsConsumption`/`viewRightsConsumption`(权益消耗)+ `dataUpdateTime`/`updateCycleMin`。**这是 §11.2 反馈环 daily_stats 的干净数据源**。
+  - **今日漏斗指标**:`GET /wapi/zpboss/h5/weeklyReportV3/recruitDataCenter/get.json?jobId=0&platform=1&date=`(jobId=0=全部岗)→ `zpData.todayData`:`view`(我看过)/`viewed`(看过我)/`chatInitiative`(我打招呼)/`contactMe`(牛人新招呼)/`chat`(我沟通)/`resume`(收获简历)/`exchangePhoneAndWeiXin`(交换电话微信)/`interviewAccept`(接受面试),每个都带 `xxxCTY`(较昨日)+ `chatInitiativeRightsConsumption`/`viewRightsConsumption`(权益消耗)+ `dataUpdateTime`/`updateCycleMin`。**这是 playbook §11.2 反馈环 daily_stats 的干净数据源**。
   - **趋势**:`recruitDataCenter/getHistory.json?jobId=0&platform=1&startDate8=YYYYMMDD&endDate8=YYYYMMDD` → 日期区间趋势;`recruitDataCenter/daily/getDate` = 可选日期。
   - **权益/额度**:`GET /wapi/zpblock/privilege/my/detail` → `zpData.accountPrivilege[]`:职位发布权益(`count=5` 在线竞招职位)、每日使用权益(沟通=200 / 查看=不限 / 回复=不限)、VIP 到期等。**这是"打招呼日限 200"的接口来源**(比读看板 DOM 稳)。
   - **健康检查算法(Step 0)**:剩余打招呼额度 = privilege 的每日沟通总量(200) − get.json 的 `todayData.chatInitiative`(今日已打招呼)。**✅ 畅聊卡余量接口已定位(2026-07-08)**:`geeks.json` 响应顶层 `chatCardCount`(剩余)/`allChatCardCount`(总),不必再读 DOM「剩余次数 xN」(§7i)。
@@ -290,12 +289,12 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - **每日打招呼额度**:文本里的「沟通 **X/200**」(实测当时 5/200、"当前剩余195个打招呼权益")——这是每日主动沟通日限的权威计数。**阈值:剩余 < ~10 就收着点/停,别撞 200 上限触发软风控。**
   - **今日漏斗**:我打招呼 / 我沟通 / 收获简历 / 交换电话微信 / 接受面试 的当日数(可核对外发是否真的发出去了、有没有异常掉零)。
   - 页面里还有**道具商城入口**(搜索畅聊卡/置顶卡/精准置顶卡「购买」,直豆可抵扣)——即"没卡了去哪买"的入口,但购买涉及付费,agent 只报告不自动买。
-- **健康检查完整清单(Step 0 建议按序)**:① 登录 `eval "document.querySelector('.user-name')?.textContent"` = 招聘者名;② 每日打招呼额度(上面的 X/200,剩余够不够本轮预算);③ 搜索畅聊卡余量(搜索结果详情右侧「畅聊卡 剩余次数 xN」,或按钮「搜索畅聊卡(3/N)」的 N);④ 风控体感(聊天页是否反复卡"加载中"、额度是否异常、动作是否被拒)——命中就停手冷却。前三项有选择器可自动读,第④项靠行为观察。
+- **健康检查完整清单(Step 0 建议按序)**:① 登录 `eval "document.querySelector('.user-name')?.textContent"` = 招聘者名;② 每日打招呼额度(上面的 X/200,剩余够不够本轮预算);③ 搜索畅聊卡余量(**接口** `geeks.json` 顶层 `chatCardCount`,§7d/§7i;单次开聊成本逐人 1~3 张读 `searchChatCardCostCount`);④ 风控体感(聊天页是否反复卡"加载中"、额度是否异常、动作是否被拒)——命中就停手冷却。前三项有选择器可自动读,第④项靠行为观察。
 - **工具箱**(`/web/chat/toolbox_v2`,iframe):牛人管理 / **自定义打招呼语** / 已读筛选。
 - **自定义打招呼语**(`/web/chat/set/greeting`,账号设置内,iframe):开关(默认开);**通用** + **按职位设置招呼语**两级;风格预设 常规/幽默/礼貌/诚恳/**自定义**;占位符 {职位}{姓名}{公司};默认模板"你好,我司急聘{职位}一职,请问考虑么?"。→ 这就是推荐/搜索打招呼发的开场白来源;**措辞属品牌语音,改动应由用户定**。
   - **选择器(2026-07-06 只读补录,零点击零保存)**:控件全在 iframe 里(`document.querySelector('iframe').contentDocument`)。总开关 `div.switch > span.ui-switch`(开=带 `.ui-switch-checked`);两级 tab `.greeting-tab .tab-header .tab-item`(选中=`.tab-item.select`);当前生效语显示在「未按职位单独设置时,将使用:」之后;风格预设 `.list-tab > p`(选中=`p.active`);各风格的现成模板列表在 `.tab-common .list-container`(占位符以「(示例姓名/公司/职位)」内联展示)。
   - **⚠「自定义」的输入框和保存按钮要选中「自定义」后才渲染**,本次守零改动承诺未点(账号级持久配置,改了影响之后所有系统打招呼文案)。真要设置的完整路径:用户定措辞 → state 取「自定义」`p` 的索引 click → input 写内容 → 找保存按钮 click(届时把这两个选择器补进来)。agent 对此页默认**只读不写**;管线的定制招呼语不走这里,走"打招呼→会话内补发定制句"(playbook §11.1,§7c 会话流程)。
-- **换电话确认框**:「确定与对方交换手机吗?」(取消/确定);**换微信确认框**:「确定与对方交换微信吗?」(取消/确定)——与求简历同款二次确认。均属外发 PII 请求,发前须确认。
+- **换电话确认框**:「确定与对方交换手机吗?」(取消/确定);**换微信确认框**:「确定与对方交换微信吗?」(取消/确定)。**🔴 换电话/换微信=永久红线(§6),与求简历不同**:求简历是 agent 可代做(确认后 agent 自己点确定);**换电话/微信 agent 只导航到确认框、绝不点「确定」,最后那一下必须用户亲自点**(任何模式、任何档位都不自动)。
 ## 7e. ✅ 接口层(2026-07-06 真机抓包实测,推荐通道可作主路径)
 
 **怎么调**:同源 sync XHR,借页面已有 cookie,eval 里跑(异步 fetch eval 可能返回前没 resolve,用同步 XHR 最稳):
@@ -323,7 +322,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - **✅ 关键好处:接口直接构造干净 `keywords`+筛选参数,根本不用去 UI 里"清默认预选"那一套**(那是 DOM 路径才有的坑)。`extraStr.quickFilter` 是 Boss 给的建议筛选 chips,可留空/忽略。
 - **响应**:`zpData.geeks[]`(**注意 key 是 `geeks` 不是 `geekList`**)+ `zpData.hasMore`(翻页)。搜索结果是**打码候选人**(`geekCard.name` 形如 `"S**"`)。
 - **每个候选人**:`geekCard{ name(打码), gender, city, workYear, salary/lowSalary/hightSalary, geekDesc(优势,**⚠是对象、取 `.name`**), degreeName, current(当前公司/职位,**⚠是对象、取 `.name`**;另有 unitName/unitPosition 常为 null), expect(期望), encryptExpectId, securityId }` + 顶层 `friendRelationStatus`(**搜索通道的去重标**,是否已建立关系/联系过)、`geekCallStatus`、`read`、`works`、`ageDesc`。
-- **⚠ 触达搜索结果要花畅聊卡**(打码人,开聊=3卡+捆绑索要PII,见 §2B);接口只负责**免费拉列表/筛选**,真要触达仍走 UI 开聊(有确认+境外提示等门)。
+- **⚠ 触达搜索结果要花畅聊卡**(打码人,开聊=1~3卡+捆绑索要PII,见 §2B/§7i);接口只负责**免费拉列表/筛选**,真要触达仍走 UI 开聊(有确认+境外提示等门)。
 
 ### 🟢 搜索候选人详情(geek/info)—— 破 canvas 反爬,读全文简历(2026-07-07 实测)
 点搜索结果卡看简历详情有一整套**反爬**:卡片 `<a ka=search_click_open_resume>` 用 JS 在**新标签页**打开、简历画在 **`<canvas>`** 上(伴随 `static.zhipin.com/.../wasm/resume/wasm_canvas_bg.wasm`)——**DOM 读不到文字、browser-act 跟不到新标签、eval-click 触发不了、干净截详情页也做不到**。**但接口层直接破了它**:
@@ -334,7 +333,7 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
   - `geekExpectList[]`{ locationName, positionName, salaryDesc, industryDesc }(求职意向,可多条)
   - `geekWorkExpList[]`{ startYearMonStr, endYearMonStr, company, positionName, department, **responsibility(工作职责全文)**, workPerformance(业绩) }
   - `geekProjExpList[]`(项目)、`geekEduExpList[]`{ school, major, degreeName, eduType, thesisTitle, courseDesc, majorRankingDesc }、`professionalSkill`、`resumeSummary`、`highlightWords`、`certList` 等。
-- **⚠ 纯只读**:geek/info 拉详情=免费、零外发、零红线;真要联系仍走 UI 开聊(3卡+PII捆绑,红线)。
+- **⚠ 纯只读**:geek/info 拉详情=免费、零外发、零红线;真要联系仍走 UI 开聊(1~3卡+PII捆绑,红线)。
 - geek/info **只是"搜索通道拿到一个候选人详情"的方式**;拿到的 `geekDetail` 各 `*List` 模块可转 markdown(比截图 OCR 干净准,详情画布截不到)。**但"导简历 md"是跟来源解耦的独立能力,别焊在搜索后面**——见 §7g。
 
 ### 🟡 会话状态/漏斗 = 有干净 REST;实时消息流 = WebSocket(2026-07-07 更正)
@@ -448,15 +447,18 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 - [x] **健康检查读法**(每日打招呼额度 X/200 + 畅聊卡余量,2026-07-05,见 §7d)
 - [x] **扫回执机制**(沟通中 tab + status 信号 → full 档异步求简历闭环,2026-07-05,见 §7c)
 
-**待补**:
-- [ ] 会话内**约面**(`.interview`「约面试」)发起流程 —— 一级第④项,唯一没跑的核心动作(用户暂缓;红线不自动但操作待文档化)
-- [ ] 自定义打招呼语的**实际设置**(设置页选择器已只读补录 §7d,2026-07-06;写路径=账号级持久配置,等用户定措辞再走,agent 默认只读不写)—— 注意管线定制招呼语已有替代路径(§11.1 会话内补发),此项只影响系统默认语
+**本轮补齐(2026-07-06~08,已完成)**:
 - [x] **搜索通道接口化**(geeks.json 全参数+响应结构+friendRelationStatus去重标,2026-07-06 实测,见 §7e🟢;接口直接传干净keywords,免掉清默认坑)
 - [x] **互动通道接口化**(`interaction/bossGetGeek`,账号全局+免费+tag/status 编码 tab,2026-07-07,见 §4.6)
 - [x] **牛人管理漏斗接口化**(`friend/manage/geekListV2?workflow=`,ATS/CRM 会话账本、扫回执真源头,2026-07-07,见 §4.7)
 - [x] **以人找人**(样本简历→画像→多词扫描→深读定档→LLM打分排档→§7g导出,只读;2026-07-08 实测8/9,见 §7h)
+- [x] **搜索开聊机制 + 推荐扫池群发**(useCard 接口/成本1-3张/推荐 btn-greet,2026-07-08,见 §7i/§7j)
+
+**仍待补(真没跑通,agent 别当已就绪依赖)**:
+- [ ] 会话内**约面**(`.interview`「约面试」)发起流程 —— 一级第④项,唯一没跑的核心动作(用户暂缓;红线不自动但操作待文档化)
+- [ ] 自定义打招呼语的**实际设置**(设置页选择器已只读补录 §7d,2026-07-06;写路径=账号级持久配置,等用户定措辞再走,agent 默认只读不写)—— 管线定制招呼语已有替代路径(playbook §11.1 会话内补发),此项只影响系统默认语
 - [ ] 逐条消息**收发** = WebSocket,无干净 REST(§7e🟡);但漏斗/会话态/末条消息已可接口读(geekListV2),回执类去重优先它 + 推荐接口 haveChatted
-- [x] 招聘运营直觉框架(定制招呼语 / 反馈环 / 薪资破格 / 花卡预判)—— 已落地为可选开关,见 playbook §11(默认关,逐个 enabled 启用);真机整轮实测待补
+- [ ] 运营智能层(playbook §11 四功能)**真机整轮外发实测**(逻辑已离线验证,未真实外发跑过)
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "boss-zhipin strategy.yaml",
-  "description": "策略配置的正式规格。validate.py 按此校验(不依赖 jsonschema);有 jsonschema 的也可直接用它。",
+  "description": "策略配置的正式规格。validate.py 做关键项校验(必填/类型/PII捆绑闸/预算,不依赖 jsonschema);部分约束(detail_views_per_run 类型、min_score 0-10 区间、break_glass_mode/mode 枚举)本 schema 声明但 validate.py 暂未强制——用 jsonschema 可全量校验。",
   "type": "object",
   "required": ["name", "rubric", "budget"],
   "additionalProperties": true,

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "boss-zhipin daily_stats.jsonl (每行一天)",
+  "description": "策略级反馈环账本(playbook §6/§11.2)。每天一行;no_reply_streak 驱动唯一的自动止损(连续无回复≥阈值→暂停)。注:validate.py 目前只校验 strategy.yaml + ledger.jsonl,尚未校验本文件——此 schema 先立契约,validate_daily_stats() 待补。",
+  "type": "object",
+  "required": ["date", "greets", "replies", "no_reply_streak", "status_flag"],
+  "properties": {
+    "date": { "type": "string", "description": "YYYY-MM-DD" },
+    "greets": { "type": "integer", "description": "当日打招呼数" },
+    "delivered": { "type": "integer" },
+    "reads": { "type": "integer", "description": "被已读数" },
+    "replies": { "type": "integer", "description": "当日回复数" },
+    "cards_used": { "type": "integer", "description": "当日消耗畅聊卡(逐人 searchChatCardCostCount 累加)" },
+    "chat_converted": { "type": "integer" },
+    "reply_rate": { "type": "number" },
+    "read_rate": { "type": "number" },
+    "diagnosis": { "type": "string", "description": "低于基线时的诊断(文案/人群/风控)" },
+    "no_reply_streak": { "type": "integer", "description": "跨日累计连续无回复,驱动自动止损" },
+    "status_flag": { "type": "string", "description": "running / paused-no-reply / …" }
+  }
+}

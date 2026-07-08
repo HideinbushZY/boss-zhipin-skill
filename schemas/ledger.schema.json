@@ -52,7 +52,7 @@
     "salary_flexible_tier": { "type": ["string", "null"], "description": "A*_salary_sensitive | null" },
     "approved_ceiling": { "type": ["number", "null"], "description": "用户授权的破格上限;未授权=null" },
     "last_touched_date": { "type": "string", "description": "防 24h 重复触达(全局去重 §7f)" },
-    "touched_jobs": { "type": "array", "items": { "type": "object", "properties": { "job": { "type": "string" }, "status": { "type": "string" }, "date": { "type": "string" } } }, "description": "多岗共享账本:该人被哪些岗触达过 [{job,status,date}](§12)" },
+    "touched_jobs": { "type": "array", "items": { "type": "object", "required": ["job", "status"], "properties": { "job": { "type": "string" }, "status": { "type": "string" }, "date": { "type": "string" } } }, "description": "多岗共享账本:该人被哪些岗触达过 [{job,status,date}](§12);job/status 必填,与 validate.py 一致" },
     "status_global": { "type": "string", "description": "跨岗全局状态(多策略共享账本用)" }
   }
 }
