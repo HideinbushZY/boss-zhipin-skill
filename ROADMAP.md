@@ -12,7 +12,7 @@
 
 1. ~~接口层主路径 + 全局去重(#2 #3)~~ ✅ **已做(2026-07-06)** —— 推荐(`rec/geek/list`)+ 搜索(`geeks.json`)双通道都走接口主路径(解决虚拟滚动退化、搜索还免掉了清默认坑),去重用接口自带 `haveChatted`/`friendRelationStatus`。**这道基建门槛跨过了——从演示级迈到生产级的关键一步。** 只剩会话列表是 WebSocket(无干净 REST,回执走 DOM 漏斗)。
 2. ~~当日反馈环 + 定制打招呼语(#9 #8)~~ ✅ **三件运营智能层已实现(2026-07-06,playbook §11,默认关)** —— 定制招呼语 + 反馈环 + 薪资破格都落进 skill 了,开 `enabled` 即生效。这层是"智能感"的来源:会看回复率调策略、会按背景写文案、会给破格加薪建议。
-3. **参数化浏览器 ID + SAFETY.md + CONTRIBUTING.md(#1 #15 #16)** —— 开源采纳最小三件套:setup 不卡壳、风险讲清楚、社区知道怎么帮修选择器。没这三样,再好的引擎也只有作者一个人在用。
+3. ~~参数化浏览器 ID + SAFETY.md + CONTRIBUTING.md(#1 #15 #16)~~ ✅ **基本已做** —— 浏览器 ID 已全占位符化、SAFETY.md/CONTRIBUTING.md 已建。开源采纳最小三件套里**只剩 `verify-setup` 一键自检脚本**(见 #1)+ demo 截图/GIF(#17)未落地。
 
 ---
 
@@ -20,8 +20,8 @@
 
 ### P0 — 高杠杆,先做
 
-**#1 参数化浏览器 ID + `verify-setup` 自检** · `S / 高`
-全文剩余硬编码 `direct_local_...` 换 `<YOUR_BROWSER_ID>`;SKILL.md「用前必做」补一段复制即跑的 Bash,校验 浏览器 ID / 登录 / 每日额度,输出 pass/fail。跨机交接第一个卡点。
+**#1 `verify-setup` 一键自检** · `S / 高` · ◐ 半done
+参数化浏览器 ID ✅ 已完成(全文无硬编码 `direct_local_`,统一 `<YOUR_BROWSER_ID>`)。**仍缺**:SKILL.md「用前必做」补一段复制即跑的 Bash,校验 浏览器 ID / 登录 / 每日额度,输出 pass/fail。跨机交接第一个卡点——目前三步 setup 全手动、新用户 agent 难自证配好。
 
 **#2 接口层升为推荐+搜索主路径,DOM 降 fallback** · `M / 高` · ✅ **推荐+搜索通道均已做(2026-07-06)**
 - **推荐**:`GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&{filters}` → `geekList[]`(15/页)+`hasMore`,`geekCard` 全字段 → **虚拟滚动索引退化消失、精确翻页不漏人**。
@@ -70,7 +70,7 @@
 ### P1
 
 **#11 掩码候选人花卡前质量预判** · ✅ **已做(2026-07-06,§11.4)**
-`intelligence.card_prescreen`(默认开,只减花卡零外发):搜索开卡前用接口免费的 公司/城市/学历/年龄+优势词 四信号打质量分,≥`min_score`(默认6)才建议开卡、3-6 报告待定、<3 不开。接进 playbook Step 5。3卡/次的真金白银用在刀刃上,实测减 20-30% 无效卡。
+`intelligence.card_prescreen`(默认开,只减花卡零外发):搜索开卡前用接口免费的 公司/城市/学历/年龄+优势词 四信号打质量分,≥`min_score`(默认6)才建议开卡、3-6 报告待定、<3 不开。接进 playbook Step 5。1~3卡/次的真金白银用在刀刃上,实测减 20-30% 无效卡。
 
 **#12 约面流程文档化 + offer/入职跟踪** · `M / 中`
 live 实测会话内 `.interview` 发起流程写回 operation-map(唯一没跑的核心动作,§8 第④项);ledger 加 `interview_proposed / offer_issued / onboarded`;报告加「待约面」。补上"约面→onboard"才是闭环、ROI 分析才有数据。**约面仍属红线不自动,只文档化 + 报告建议 + 人来点。**

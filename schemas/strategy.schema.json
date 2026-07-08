@@ -46,7 +46,7 @@
       "type": "object",
       "properties": {
         "greets_per_day": { "type": "integer", "description": "当日打招呼上限(账号总额 200/天)" },
-        "chat_cards": { "type": "integer", "description": "本策略可消耗搜索畅聊卡上限(每次开聊=3张)" },
+        "chat_cards": { "type": "integer", "description": "本策略可消耗搜索畅聊卡上限(每次开聊逐人 1~3 张,读 searchChatCardCostCount,非固定)" },
         "authorize_card_pii_bundle": { "type": "boolean", "default": false, "description": "🔴chat_cards>0 时必须显式 true:开聊会自动索要简历/微信/电话(PII捆绑,碰红线)。validate.py 强制;即 §1规则7'用户授权过畅聊卡'的机检定义" },
         "detail_views_per_run": { "type": "integer" },
         "base_salary_range": {
@@ -91,7 +91,7 @@
         },
         "card_prescreen": {
           "type": "object",
-          "description": "搜索畅聊卡(3卡/次)开聊前先免费打质量分,别冲动开卡(§11.4)。注意:唯一默认开的智能开关",
+          "description": "搜索畅聊卡(逐人1~3卡/次)开聊前先免费打质量分,别冲动开卡(§11.4)。注意:唯一默认开的智能开关",
           "properties": {
             "enabled": { "type": "boolean", "default": true },
             "min_score": { "type": "number", "minimum": 0, "maximum": 10, "default": 6, "description": "质量分≥此值才建议开卡" }
