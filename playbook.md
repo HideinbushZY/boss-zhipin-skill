@@ -104,7 +104,8 @@ Step 0.5  扫回执(补全 full 档异步闭环)  [operation-map §4.7 geekListV
 Step 1  推荐通道(免费,优先)   [operation-map §7e 接口主路径 / §2A DOM 兜底]  —— 仅当 §1.5 预检 linked_job 可用
   · **主路径=接口(2026-07-06 起)**:拿 linked_job 的 encJobId(抓包 rec/geek/list 的 jobId,或从推荐 iframe 取),同源 sync-XHR 调
     `GET /wapi/zpjob/rec/geek/list?jobId={encJobId}&page=N&{age/degree/experience/salary 映射 hard_filters}` →
-    逐页拉(每页15)直到 `hasMore=false`,从 `geekList[].geekCard` 直接拿 name/经验/学历/优势/期望薪资/城市/教育/工作经历 —— **无虚拟滚动、无 state 索引退化、可精确翻页不漏人**。
+    逐页拉(每页15)直到 `hasMore=false`,从 `geekList[].geekCard` 直接拿 name(**真名**)/securityId/经验/学历/优势/期望薪资/城市/教育/工作经历 —— **无虚拟滚动、无 state 索引退化**。
+    · **⚠ 一趟扫完,别中途回 page1**(2026-07-08 实测,§7j):推荐池**每次重新拉 page1 会重排**(连拉两次首屏全不同),但**一趟连续 1→N 是连贯的**(8页120条、去重0重复)。→ 枚举整池必须一口气 page 1→N 走完;要重扫就整趟重来,别夹在中间刷新。
   · **DOM 兜底**:接口 401/网络错/字段变 → 降级回 §2A 的 DOM 扫卡(推荐/精选/最新 tab)。DOM 只用于"开详情弹 + 点打招呼按钮"这类交互,不再靠它遍历列表。
 
 Step 2  互动通道(免费)        [operation-map §4.6]
@@ -130,8 +131,11 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
   · 〔card_prescreen,默认开〕**开卡前先按 §11.4 用免费信号打质量分**,<min_score 不开卡(打码人信号糙,3卡/次别冲动);拿不准就先 `geek/info` 免费读全文简历再定,≥门槛才进触达。
   · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(3卡/次+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
 
-Step 6  触达(按 touch_policy)  [§5]
-  · 优先免费推荐通道打招呼;搜索来的按 budget.chat_cards 逐张记账,超停
+Step 6  触达(按 touch_policy)  [§5 / operation-map §7j 推荐扫池群发]
+  · **主引擎=推荐通道"扫池群发"(免费、可靠,§7j)**:对 Step1 枚举出的推荐池、经 Step3 去重(haveChatted/isFriend==0)+ Step4 打分达标的人,逐个在 recommendFrame 卡上点 `button.btn-greet`(**一键、无确认弹层**,发系统模板"你好,我司急聘{岗位}一职,请问考虑么?",走标准额度**不扣卡**)。**无批量端点 → 逐卡循环点**;每个之间留间隔。
+  · **额度闸**:日限 200 沟通,开跑前算 `剩余=200−todayData.chatInitiative`(§7d);逐个记数,到剩余=0 停,别硬闯。
+  · **⚠ 这是"扫合格池群发",不是"发给指定名单"**:推荐/搜索都无法可靠定点触达某几个预先锁定的人(§7i/§7j);要 pitch 特定某人只能人工。
+  · 搜索来的(打码人)按 budget.chat_cards 逐张记账,超停(耗畅聊卡+PII捆绑,§7i;成本逐人1-3张读 searchChatCardCostCount)
   · 开聊前看"同事沟通进度",不重复 pitch
   · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板
   · 每个外发动作:写账本 + 计当日额度 + 卡记账;动作间留间隔
