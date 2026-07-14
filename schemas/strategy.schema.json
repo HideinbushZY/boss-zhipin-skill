@@ -99,6 +99,29 @@
         }
       }
     },
+    "notebook": {
+      "type": "object",
+      "description": "错题本(本地 per-user PII-free 习惯清单)采集配置。validate.py 真正执行取值范围。见 references/notebook.md",
+      "additionalProperties": true,
+      "properties": {
+        "capture": {
+          "description": "on|off(默认 on)。off 时不写错题本;已 active 的安全偏好仍生效,管理命令(list/revert/gc/reset)仍可用。注:PyYAML 会把 on/off 解析成布尔",
+          "oneOf": [
+            { "type": "boolean" },
+            { "type": "string", "enum": ["on", "off"] }
+          ],
+          "default": true
+        },
+        "platform_pitfall_ttl_days": {
+          "type": "integer", "minimum": 1, "maximum": 90, "default": 30,
+          "description": "platform_pitfall 条目 TTL(天),读取/gc 时惰性过期"
+        },
+        "confirm_after_n_repeats": {
+          "type": "integer", "minimum": 2, "maximum": 10, "default": 3,
+          "description": "auto 偏好重复几次后提议升级为 confirm 跨轮默认"
+        }
+      }
+    },
     "schedule": { "type": "object", "description": "心跳字段(阶段三才启用)" }
   }
 }

@@ -1,0 +1,4 @@
+{
+  "account_id": "asr-demo",
+  "_comment": "合成离线 context(PII-free)。用于 `notebook.py list/doctor --input -` 自验;只有 account_id 被读取,其余键忽略。"
+}

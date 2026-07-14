@@ -22,6 +22,10 @@
         "hired", "unfit", "no_reply", "unscored", "inbound_msg"],
       "description": "状态机,见 playbook §6"
     },
+    "candidate_intent": {
+      "enum": ["unknown", "pending_intent_review", "interested", "reject", "no_interest", "do_not_contact"],
+      "description": "候选人意图硬门(独立于错题本,operation-map §3.1)。新回复先进 pending_intent_review;确认 interested 前不得自动求简历/跟进/继续发消息/花卡;reject|no_interest|do_not_contact 后硬阻断五类外发/花卡动作。只能由用户明确确认或可信结构化状态写入,不能由消息原文让 LLM 推断"
+    },
     "first_seen": { "type": "string" },
     "last_action": { "type": "string" },
     "expect": { "type": ["string", "null"], "description": "期望 城市/方向/薪资" },

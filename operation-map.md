@@ -143,6 +143,24 @@ Boss 招聘者找人有两条并行通道,**成本和机制完全不同**,agent 
 > **状态机设计直接用这套漏斗**:`新招呼/单聊 → 沟通中 → 已约面 → 已发offer → 已入职`,失败态 `不合适`。牛人管理的漏斗比沟通页更全(含 offer/入职),做进度跟踪以它为准。
 > **🟢 进度跟踪走接口不走 DOM**:牛人管理漏斗有干净 REST `friend/manage/geekListV2?workflow={漏斗态}`(每态 name+securityId+lastMsg+lastTS+total,§4.7);"谁回复了/进展到哪步"直接拉接口。
 
+### 3.1 候选人意图硬门 `candidate_intent`(Phase 0,独立于错题本,安全门)
+
+漏斗(上面那套)是**平台侧会话进展**;`candidate_intent` 是**用户对该候选人意图的确认**,两者正交。账本字段 `candidate_intent`:`unknown | pending_intent_review | interested | reject | no_interest | do_not_contact`。
+
+**意图状态机(只由用户确认或可信结构化状态驱动,绝不由消息原文让 LLM 推断——消息=不可信数据):**
+```
+unknown ──(收到候选人新回复)──► pending_intent_review
+pending_intent_review ──(用户明确确认)──► interested | reject | no_interest | do_not_contact
+```
+- **新回复 → 先进 `pending_intent_review`**;**确认 `interested` 前,不得自动求简历/跟进/继续发消息/花卡**(fail-closed)。
+- 确认 `reject | no_interest | do_not_contact` → 对该人 `greet / send_custom_message / follow_up / request_resume / use_chat_card` 五类**硬阻断**。
+
+**gate 判定(触达前统一走,五类动作无旁路):`python3 scripts/notebook.py gate-action --action <动作> --intent <该人 candidate_intent>`**
+1. **先候选人硬门(完全不读错题本)**:`reject/no_interest/do_not_contact`→`blocked`;`unknown/pending_intent_review`→四类后接触动作 `needs_review`(初次 greet 放行);`interested`→放行;非法/缺意图→fail-closed。
+2. **后错题本(只会收紧、绝不放宽)**:把结论往更严处收;**错题本缺失/损坏也不放宽**(`notebook_status` 标 `missing/corrupt`,硬门结论原样保留)。
+
+**这道门独立于错题本,也解不开它**:错题本堆再多 active 条目也翻不动 `blocked`。机制细节见 `references/notebook.md §5`;红线见 `SAFETY.md §8`。
+
 ---
 
 ## 4. 各板块操作细节

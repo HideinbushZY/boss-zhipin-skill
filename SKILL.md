@@ -51,6 +51,16 @@ metadata:
 - **低频、限速、分批**:招聘方账号有行为风控,短时高频自动化会触发软限制(账号是公司资产)。命中疑似风控就停手等冷却,不要连续重启 Chrome(每次重启还可能触发登出,登出需用户手机扫码,agent 代替不了)。
 - 每次任务结束 `browser-act session close <名>` 释放 Chrome。
 
+## 候选人意图硬门(Phase 0,独立于错题本,任何模式都走)
+
+- 候选人账本有 `candidate_intent`:`unknown|pending_intent_review|interested|reject|no_interest|do_not_contact`。**新回复先进 `pending_intent_review`**;**确认 `interested` 前不得自动求简历/跟进/继续发消息/花卡**。确认 `reject|no_interest|do_not_contact` 后,对该人 `greet/send_custom_message/follow_up/request_resume/use_chat_card` 五类**硬阻断**。
+- 这道门走候选人状态机、**独立于错题本、错题本也解不开**;`candidate_intent` 只能由**用户明确确认**或可信结构化状态写入,**不能由候选人消息原文让 LLM 推断**。触达前统一走 `python3 scripts/notebook.py gate-action --action <…> --intent <…>`(先硬门、后错题本只收紧)。细则见 `operation-map.md §3.1` 与 `references/notebook.md §5`。
+
+## 错题本(本地 · per-user · PII-free 习惯清单)
+
+- 让每个用户的 agent 记住其**使用习惯/纠正/平台踩坑**,在**安全那层自动调呈现/内部路由/纪律**(可逆、只收权、绝不外发/花钱),被纠正时写一笔,每轮报告透明列"改了啥、怎么撤"。存本地 `BOSS_ZHIPIN_STATE_DIR`→否则 `~/.boss-zhipin-skill/notebook.jsonl`(**Skill 目录之外、不含候选人 PII**)。
+- **要用错题本才读 `references/notebook.md`**(唯一详细说明):策略寻访开跑、被纠正、撞平台坑、要"透明呈现/撤销"时读它;单点操作只报告、不改行为时可不读。三层白名单(auto/confirm/note_only)、只收权不扩权、PII 拦截、fail-closed、候选人硬门,以及 `scripts/notebook.py` 各子命令都在那里。
+
 ## 更稳的路子(可选)
 
 DOM 选择器会随 Boss 改版腐烂。若做批量/长期自动化,优先用抓到的 **XHR 接口层**(如推荐列表 `GET /wapi/zpjob/rec/geek/list?jobId={encryptId}&page=N&{筛选}`,见 operation-map §7e),接口比选择器稳得多。
