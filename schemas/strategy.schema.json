@@ -39,8 +39,8 @@
     },
     "touch_policy": {
       "enum": ["report_first", "greet_A_capped", "greet_custom", "full"],
-      "default": "full",
-      "description": "触达档,档义见 playbook §5"
+      "default": "report_first",
+      "description": "触达档(默认 report_first 零外发;升档需客户授权),档义见 playbook §5"
     },
     "budget": {
       "type": "object",

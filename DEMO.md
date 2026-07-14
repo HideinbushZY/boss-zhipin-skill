@@ -17,14 +17,14 @@
 # 1) 自检(可选)
 bash verify-setup.sh <BID>            # → ✅ browser-act / ✅ 浏览器id / ✅ 已登录
 
-# 2) 接口读列表(主路径,抗改版)——清污染 jobId=0 + 关键词
+# 2) 接口读列表(主路径,抗改版)——清污染 jobId=0 + 关键词(operation-map §7e canonical 端点)
 browser-act --session <S> eval "
-  fetch('/wapi/zpgeek/search/geek/list.json?query='+encodeURIComponent('会议系统前端算法')
-    +'&jobId=0&page=1',{credentials:'include'}).then(r=>r.json())"
-# → 返回打码候选人列表 + 每人 securityId + 当次开聊成本
+  fetch('/wapi/zpitem/web/boss/search/geeks.json?keywords='+encodeURIComponent('会议系统前端算法')
+    +'&jobId=0&page=1&source=1',{credentials:'include'}).then(r=>r.json())"
+# → zpData.geeks[] 打码候选人 + 每人 geekCard.securityId + 顶层 chatCardCount 余量
 
-# 3) 读排名第一者详情(接口=明文简历,比截图快一个量级)
-browser-act --session <S> eval "fetch('/wapi/zpgeek/geek/info.json?securityId=<sid>'...)"
+# 3) 读排名第一者详情(接口=明文简历,破 canvas 反爬,比截图快一个量级)
+browser-act --session <S> eval "fetch('/wapi/zpitem/web/boss/search/geek/info?securityId=<sid>&encryptGeekDetailGray=1'...)"
 ```
 
 **agent 回你**(合成示例):
@@ -42,17 +42,19 @@ browser-act --session <S> eval "fetch('/wapi/zpgeek/geek/info.json?securityId=<s
 
 ```yaml
 # strategies/asr-engineer-example/strategy.yaml(节选,已是仓里的合成示例)
-role: "语音识别(ASR)算法工程师"
-linked_job: "语音识别(ASR)算法工程师"     # 必须精确等于你已发布的在线职位名
+name: asr-engineer                        # 策略名(= 文件夹名)
+linked_job: 语音识别(ASR)算法工程师       # 必须精确等于你已发布的在线职位名
 rubric:
-  must: ["3年+ ASR/语音算法", "端侧或会议场景优先"]
-touch_policy: greet_recommend            # 推荐通道免费打招呼;付费开聊要单独授权
+  must:                                   # 缺一 → 封顶 B
+    - 3年以上语音/声学算法实战经验(ASR识别 或 会议前端声学 任一)
+    - 掌握端到端语音识别原理 或 阵列/声学信号处理(会议前端)
+touch_policy: report_first                # 安全默认:只研究零外发;升档 greet_*/full 需你授权
 budget:
   greets_per_day: 15
-  chat_cards: 12                         # 逐人 1~3 张,读 searchChatCardCostCount
-  authorize_card_pii_bundle: true        # chat_cards>0 必须显式 true(知情接受 PII 捆绑)
+  chat_cards: 0                           # 安全默认 0 卡;要开搜索畅聊须同时 authorize_card_pii_bundle: true
+  authorize_card_pii_bundle: false        # chat_cards>0 必须显式 true(知情接受 PII 捆绑),validate.py 强制
 intelligence:
-  card_prescreen: { enabled: true }      # 默认开:花卡前免费打质量分,省无效卡
+  card_prescreen: { enabled: true }       # 默认开:花卡前免费打质量分,省无效卡
 ```
 
 **跑前机检**:
@@ -67,11 +69,11 @@ python3 validate.py strategies/asr-engineer-example/
 
 ```
 # 寻访报告 · 语音识别(ASR)算法工程师 · 第1轮(示例)
-- budget:打招呼15/天 · 畅聊卡预算N · 详情40/轮 · 目标合格10
+- 触达档:report_first(安全默认·零外发) · budget:打招呼15/天 · 畅聊卡0 · 详情40/轮 · 目标合格10
 - 候选人（打码/脱敏示例）:
-  - 某先生(示例) | 某声学公司·会议系统前端 | 28-35K·深圳 | 8.0 | ✅畅聊卡开聊(消耗3卡)
-- 累计合格(A):2/目标10。畅聊卡本轮用 3 张。今日打招呼 1/15。
-- 下一步建议(等你拍板):供给错配则上探薪资 / 放宽经验 / 畅聊卡定向挖目标公司。
+  - 某先生(示例) | 某声学公司·会议系统前端 | 28-35K·深圳 | 8.0 | 未触达(report_first 只研究不外发)
+- 累计合格(A):2/目标10。本轮零外发(未打招呼、未花卡)。
+- 下一步建议(等你拍板):授权升档 greet_* 打招呼 / 供给错配则上探薪资 / 放宽经验 / 授权畅聊卡(chat_cards>0 + authorize_card_pii_bundle)定向挖目标公司。
 ```
 
 **闭环边界(诚实)**:管线**止于"收到简历"**;换电话/微信/约面 = **永久红线,只在报告里建议、等你点**。
@@ -80,6 +82,8 @@ python3 validate.py strategies/asr-engineer-example/
 
 ## 你会看到的"安全刹车"(这是特性不是 bug)
 
+- **默认零外发(report_first)**:新策略触达默认档 = `report_first`(只研究、给 A/B/C 名单+打分,不自动打招呼/求简历/花卡);要外发得你显式升档 `greet_*`/`full` 并授权。
+- **候选人意图硬门(Phase 0)**:对某人 打招呼/求简历/继续发消息/花卡 前先过 `gate-action` 硬门——新回复先进 `pending_intent_review`,**没你确认 `interested` 前不自动求简历/跟进**;被标 `reject/no_interest/do_not_contact` 的人五类外发**硬阻断**(独立于错题本、错题本也解不开;见 `SAFETY.md` §8)。
 - 任何**外发**(打招呼/回复/求简历)、**消耗畅聊卡**、**发布/关闭职位** → agent 发出前**逐条等你确认**。
 - **换电话 / 换微信 / 约面 / 删除职位 / 举报** → 永久红线,agent 只导航到位、给步骤,**那一下由你亲自点**。
 - 命中疑似风控 → agent **停手冷却**,不硬撞、不连环重启 Chrome。

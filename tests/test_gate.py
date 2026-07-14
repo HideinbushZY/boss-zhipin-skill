@@ -56,6 +56,12 @@ class TestPendingReviewFailClosed(NotebookTestBase):
         self.assertEqual(r["decision"], "allowed")
         self.assertEqual(r["reason_code"], "initial_greet_ok")
 
+    def test_greet_pending_review_needs_review(self):
+        # L2:初次 greet 仅 unknown 放行;pending_intent_review 下即使 greet 也 needs_review
+        r = nb.gate_action("greet", "pending_intent_review")
+        self.assertEqual(r["decision"], "needs_review")
+        self.assertEqual(r["reason_code"], "intent_not_confirmed_interested")
+
     def test_interested_passes_hard_gate(self):
         for act in FIVE:
             r = nb.gate_action(act, "interested")

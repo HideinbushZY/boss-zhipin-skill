@@ -2,7 +2,7 @@
 
 > 本文件是**编排层/大脑**:把用户的自然语言搜索策略,变成"判定→找人→筛人→触达→反馈"的一轮闭环。
 > 执行层(怎么点页面)看 `operation-map.md`;本文只讲**做什么、按什么顺序、什么条件下做**。
-> 现阶段范围:**单次 + 手动触发**(心跳留白,§2)。触达默认档 `full`,畅聊卡可用。
+> 现阶段范围:**单次 + 手动触发**(心跳留白,§2)。触达默认档 `report_first`(零外发;升档需客户授权,打招呼/求简历档义见 §5)。
 > 需要的工具:`Bash(browser-act:*)`(驱动浏览器)+ `Read/Write/Edit`(读写 strategy.yaml / ledger.jsonl / reports)。
 
 ---
@@ -30,7 +30,7 @@
 | `keywords[][]` | 技能词/能力 | 见【规则 4】关键词矩阵 |
 | `target_companies[]` | "从这几家挖" | **只进 company_bonus,不重复进 nice**【规则 5】 |
 | `rubric.must/nice/reject` | JD 硬性/优先/排除 | 见【规则 1/6】 |
-| `touch_policy` | 用户档 | 默认 `full`;档义 §5 |
+| `touch_policy` | 用户档 | 默认 `report_first`(零外发;升档需授权);档义 §5 |
 | `budget.chat_cards` | 用户畅聊卡授权 | 【规则 7】:用户全局授权过畅聊卡→默认 4;否则默认 0 |
 | `budget.greets_per_day` | — | 默认 15 |
 | `target_qualified` | "攒N个" | 合格定义见【规则 8】 |
@@ -98,8 +98,12 @@ Step 0.5  扫回执(补全 full 档异步闭环)  [operation-map §4.7 geekListV
   · **取名单=接口优先(2026-07-07 起)**:同源 sync-XHR 调 `GET /wapi/zprelation/friend/manage/geekListV2?workflow=沟通中&page=N&pageSize=15` → `zpData.result[]`(每人 name+securityId+lastMsg/lastTS+encryptJobId),按 lastTS 判谁刚回;比翻 DOM 漏斗干净(§4.7)。要看某漏斗态全量就换 `workflow={单聊|沟通中|已约面|…}`。
   · DOM 兜底:进沟通页(左菜单点「沟通」,别冷加载 URL)→ 点「沟通中」漏斗 tab(div[title=沟通中])→ 取活跃对话名单
   · 与 ledger 里 status∈{greeted,chatted} 的人取交集 = 本轮"回复了、求简历已解锁"的人
-  · 对交集每人:打开会话后先核收件人(.name-container .name-box = 该人名,三验①)再点「求简历」——求简历也是外发,发错人同样不可撤回
-  · 对交集每人(full/greet 档):开会话 → 点「求简历」(此时 enabled)→ 确认框「确定向牛人索取简历吗?」→ 确定 → ledger 记 request_resume;换电话/微信仍红线不自动
+  · 🔴 **对交集每人,点「求简历」前先过候选人硬门(求简历是外发动作,和 Step 6 一样必过硬门,§13 / operation-map §3.1)**:`python3 scripts/notebook.py gate-action --action request_resume --intent <该人 candidate_intent>` →
+    - `allowed`(该人 candidate_intent=interested)→ 才自动求简历(接下面核收件人流程);
+    - `needs_review`(pending_intent_review / 未确认 interested)→ **不自动求简历**,ledger 标 pending 状态、列入报告等用户确认 interested 再补;
+    - `blocked`(该人 reject/no_interest/do_not_contact)→ 不求,只在报告给建议。
+  · 对硬门放行的每人:打开会话后先核收件人(.name-container .name-box = 该人名,三验①)再点「求简历」——求简历也是外发,发错人同样不可撤回
+  · 对硬门放行的每人(full/greet 档):开会话 → 点「求简历」(此时 enabled)→ 确认框「确定向牛人索取简历吗?」→ 确定 → ledger 记 request_resume;换电话/微信仍红线不自动
   · 没交集就跳过(说明还没人回);inbound 天然"没status"不算回复,别误判
 
 Step 1  推荐通道(免费,优先)   [operation-map §7e 接口主路径 / §2A DOM 兜底]  —— 仅当 §1.5 预检 linked_job 可用
@@ -139,7 +143,7 @@ Step 6  触达(按 touch_policy)  [§5 / operation-map §7j 推荐扫池群发]
   · **走量 vs 定点**:本步(推荐扫池群发)是**走量**;要**定点触达某几个指定的人**,走搜索定点法(清污染 jobId=0 + 该人独特关键词精准置顶 → UI 开聊,operation-map §7i;已开聊者自动从搜索隐藏、不用手动去重)。两者都可自动,别再当"定点做不到"。 **定点开聊执行层踩坑**(接口评估与 UI 触达用同一关键词、当场认人别离线复现清单、选岗控招呼调性+花卡前验 `li.active`、卡摘要会骗需读全简历+强签名核身)见 operation-map §7i-复盘。
   · 搜索来的(打码人)按 budget.chat_cards 逐张记账,超停(耗畅聊卡+PII捆绑,§7i;成本逐人1-3张读 searchChatCardCostCount)
   · 开聊前看"同事沟通进度",不重复 pitch
-  · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板
+  · 〔若 intelligence.custom_greetings.enabled〕A 档先按 §11.1 生成定制招呼语 → 用户逐条确认 → 打招呼后补发定制句;否则发系统模板。**首触硬门口径**:首触(haveChatted==0/intent=unknown)按 `greet` 过硬门放行,随首触补发的定制句**不另判 `send_custom_message`**(§11.1 首触硬门口径);只有对**已接触**候选人的后续补发才按 `send_custom_message` 过门(需 interested),以免 unknown 时被 needs_review 卡死
   · 每个外发动作:写账本 + 计当日额度 + 卡记账;动作间留间隔
   · 🔴 会话内发消息必过"三验":①收件人(聊天头部 .name-container .name-box = 目标名)②内容(编辑框=批准稿)③送达回读(线程仍是目标+末条气泡=刚发内容)——缺一不发(operation-map §7c,真实误发事故换来的)
 
@@ -181,10 +185,10 @@ Step 7  写账本 + 报告          [§6 §7]
 
 | 档 | 自动做 | 报告给 |
 |---|---|---|
-| `report_first` | 零外发 | A/B/C 全名单+打分 |
+| **`report_first`(默认)** | 零外发 | A/B/C 全名单+打分 |
 | `greet_A_capped` | A 档自动打招呼(额度内,系统语) | B/C |
 | `greet_custom` | A 档自动打招呼(自定义语,引用背景)——**实现见 §11.1**(生成→用户逐条确认→打招呼后补发定制句;`intelligence.custom_greetings.enabled` 时任何含 A 打招呼的档都走它) | B/C |
-| **`full`(默认)** | A 档自动 打招呼 **+ 回复后求简历** | B/C + A 触达结果 |
+| `full` | A 档自动 打招呼 **+ 回复后求简历** | B/C + A 触达结果 |
 
 **⚠ full 档的"求简历"有平台前置门(2026-07-04 live 实测)**:候选人**未回复**时(会话 `[送达]`,非「沟通中」)求简历按钮是 `operate-btn disabled`,**点不动**。所以 full 档不是"打招呼当下顺手求简历",而是**打招呼 → 候选人回复 → 求简历**两拍。单次模式下,本轮打完招呼、候选人还没回,求简历就标 `pending-reply`,写进报告"待回执",下一轮(或阶段三心跳扫回执)再补。**别用 eval 强点 disabled 按钮**(无效且越红线)。
 
@@ -276,6 +280,10 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - **校验+兜底**:`length>max_chars` 或 `valid=false` 或 LLM 5s 超时 → fallback 系统模板,报告注明 fallback 原因。
 - **发送门(红线)**:`require_user_confirmation` 恒 true → 每条给用户看确认卡 `【定制招呼语确认】候选人 | 生成文本 | 依据 | 字数N/max | (Y/N/编辑)`;**没点头不发**。Y=发定制、N=发默认、编辑=校验字数后再问。
 - **落地**:Boss 的推荐/搜索"打招呼"按钮发的是账号系统模板,不能在点的当下换文案 → **定制那句用"打招呼(触发对话)→ 立刻在会话里补发定制消息"**(会话回复流程见 operation-map §7c:`#boss-chat-editor-input` + `.submit`)。
+- **首触硬门口径(消除死锁,设计决定)**:定制招呼语只在首触(`haveChatted==0`,此刻 `intent=unknown`)触发,补发只是把首触的系统模板换成定制句,**整体仍是"首次外呼"这一个动作**。因此:
+  - **首触按 `greet` 过门**(`gate-action --action greet`,unknown 放行)——它就是首次外呼,且 `custom_greetings` 已逐条人工 Y/N 确认,不该被当成 `send_custom_message` 判 needs_review 卡死。
+  - **只有对已接触候选人的后续 `send_custom_message`**(非首触的再次外呼)才按 `send_custom_message` 过门(需 `interested`)。
+  - 口径同步写在 Step 6 与 operation-map §3.1;notebook.py 代码不动(action 由 agent 按上述判定选 `greet` 或 `send_custom_message`)。
 - **审计**:ledger.actions 记 `greeting_mode(custom|default)/greeting_text/greeting_length/greeting_rationale`。
 - 例(某会议前端声学候选人(示例),must✓阵列声学):→ "您的阵列/波束处理经验正是会议系统的核心。"(26字)替代通用"你好,我司急聘…请问考虑么?"。
 

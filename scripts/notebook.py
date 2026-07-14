@@ -94,6 +94,7 @@ CANDIDATE_INTENTS = {
 HARD_BLOCK_INTENTS = {"reject", "no_interest", "do_not_contact"}
 
 ACCOUNT_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+ID_RE = re.compile(r"^L-[0-9]+$")   # 条目 id 格式(与 schemas/notebook-entry.schema.json 对齐)
 _DECISION_RANK = {"blocked": 0, "needs_review": 1, "allowed": 2}
 
 
@@ -323,6 +324,11 @@ def _validate_value(target, value):
 
 def normalize_entry(payload, now=None, next_id=None):
     """把(已过 PII 拦截的)payload 归一化成合法条目;三层白名单 + 只收权在此强制。"""
+    # caller 传入的 id 若存在必须合法(^L-[0-9]+$),否则拒绝落一条 schema 非法的本地行
+    pid = payload.get("id")
+    if pid is not None and not ID_RE.match(str(pid)):
+        raise NotebookError("bad_id", "id 格式非法(应是 ^L-[0-9]+$):%r" % pid)
+
     target = payload.get("target")
     if not isinstance(target, str) or not target:
         raise NotebookError("missing_target", "缺 target(必须来自白名单)")
@@ -423,9 +429,15 @@ def _next_id(entries):
 # ─────────────────────────── 惰性过期 ───────────────────────────
 
 def _apply_lazy_expiry(entries, now=None):
-    """platform_pitfall 到期 → status=expired(读取时惰性)。返回被过期的 id 列表。"""
+    """platform_pitfall 到期 → status=expired(读取时惰性)。返回 (被过期的 id 列表, 见到坏行)。
+
+    单行 JSON 合法但 `ttl_days`/`created_at` 语义坏(如 "abc"、1e20、超范围)→ **跳过该条**
+    (不过期它、不崩溃),并把 saw_bad 置真;上层据此把 status 归为 corrupt,走 fail-closed
+    分支(gate 不放宽、list 报 corrupt)。契约:损坏只读继续、好行仍用,绝不未捕获异常退出。
+    """
     now_dt = _now(now)
     expired = []
+    saw_bad = False
     for e in entries:
         if e.get("status") != "active":
             continue
@@ -437,12 +449,21 @@ def _apply_lazy_expiry(entries, now=None):
         try:
             created = _parse_dt(e["created_at"])
         except Exception:
+            saw_bad = True          # created_at 坏(platform_pitfall 必有)→ 坏行,跳过
             continue
-        if now_dt >= created + datetime.timedelta(days=int(ttl)):
+        try:
+            ttl_int = int(ttl)
+            if not (1 <= ttl_int <= 90):
+                raise ValueError("ttl_days 超范围")
+            due = created + datetime.timedelta(days=ttl_int)   # OverflowError 也在此捕获
+        except (TypeError, ValueError, OverflowError):
+            saw_bad = True          # ttl_days 语义坏 → 跳过该条(不过期、不崩溃)
+            continue
+        if now_dt >= due:
             e["status"] = "expired"
             e["expired_at"] = _iso(now_dt)
             expired.append(e.get("id"))
-    return expired
+    return expired, saw_bad
 
 
 def load_notebook(account_id=None, expire=True, persist=False, now=None):
@@ -453,7 +474,9 @@ def load_notebook(account_id=None, expire=True, persist=False, now=None):
     entries, status = _load_raw(path)
     expired = []
     if expire and status in ("ok", "corrupt"):
-        expired = _apply_lazy_expiry(entries, now=now)
+        expired, saw_bad = _apply_lazy_expiry(entries, now=now)
+        if saw_bad and status == "ok":
+            status = "corrupt"          # ttl_days/created_at 语义坏 → 归 corrupt,走 fail-closed
         # 只在文件完好时把惰性过期写回;损坏文件不重写以免丢数据
         if persist and expired and status == "ok":
             ensure_state_dir(state_dir)
@@ -479,6 +502,10 @@ def cmd_init(account_id=None):
 
 def record(payload, account_id=None, capture=True, observe=False, now=None):
     """归一化 → 三层白名单/只收权/PII 强制 → 幂等追加。capture=off 则校验但不落盘。"""
+    # 控制键(account_id/capture/include)是 CLI/调用侧参数,不属于条目 schema;lint 前剥离,
+    # 否则 lint_pii 会因白名单外字段拒掉,导致"payload 带 account_id/capture 也能 record"成死代码。
+    if isinstance(payload, dict):
+        payload = {k: v for k, v in payload.items() if k not in ("account_id", "capture", "include")}
     lint_pii(payload)                       # PII / 自由文本 / 白名单外字段:先拦,命中不落盘
     # 预归一化(不含最终 id):先做全部校验
     entry = normalize_entry(payload, now=now, next_id="L-0")
@@ -556,7 +583,9 @@ def gc(account_id=None, now=None):
         return {"ok": True, "expired": [], "active": 0, "status": status}
     if status == "error":
         raise NotebookError("notebook_unreadable", "错题本不可读,gc 跳过")
-    expired = _apply_lazy_expiry(entries, now=now)
+    expired, saw_bad = _apply_lazy_expiry(entries, now=now)
+    if saw_bad and status == "ok":
+        status = "corrupt"              # 坏 ttl_days/created_at → gc 不崩,报 corrupt、不整写
     if expired and status == "ok":
         ensure_state_dir(state_dir)
         _atomic_write(path, entries)
@@ -598,8 +627,10 @@ def gate_action(action, candidate_intent, account_id=None, now=None):
 
     候选人硬门(独立、错题本解不开):
       reject|no_interest|do_not_contact → blocked(全部五类)
-      unknown|pending_intent_review     → 四类后接触动作 needs_review(未确认 interested 前 fail-closed);初次 greet 放行
+      unknown                           → 初次 greet 放行;四类后接触动作 needs_review(未确认 interested 前 fail-closed)
+      pending_intent_review             → 全部五类(含 greet)needs_review
       interested                        → 硬门放行
+      缺意图(None)按 unknown 处理;非法意图 → blocked(fail-closed)
     错题本层:只能把 allowed 往 needs_review/blocked 收;绝不放宽。
       错题本缺失/损坏 → 不施加任何收紧、更不放宽硬门(fail-closed)。
     """

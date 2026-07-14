@@ -105,9 +105,10 @@
 
 1. **候选人硬门(完全不读错题本)**:
    - `reject|no_interest|do_not_contact` → `blocked`(全部五类),reason `candidate_intent_hard_block`。
-   - `unknown|pending_intent_review` → 四类后接触动作(`send_custom_message/follow_up/request_resume/use_chat_card`)`needs_review`(未确认 interested 前 fail-closed);初次 `greet` 放行(仍受 touch_policy 约束)。
+   - `unknown` → 初次 `greet` 放行(仍受 touch_policy 约束);四类后接触动作(`send_custom_message/follow_up/request_resume/use_chat_card`)`needs_review`(未确认 interested 前 fail-closed)。
+   - `pending_intent_review` → 全部五类(含 `greet`)`needs_review`;必须用户明确确认 `interested` 后才继续。
    - `interested` → 硬门放行。
-   - 非法/缺失意图 → fail-closed(`blocked`/按 unknown 处理)。
+   - 缺意图(None)→ 按 unknown 处理;非法意图 → `blocked`(fail-closed)。
 2. **错题本层(只会收紧,绝不放宽)**:把硬门结论往更严的方向收(`allowed→needs_review→blocked`),永不放宽。
    - 错题本**缺失/损坏 → 不施加任何收紧、更不放宽硬门**(`notebook_status` 标 `missing/corrupt`,硬门结论原样保留)。
 
