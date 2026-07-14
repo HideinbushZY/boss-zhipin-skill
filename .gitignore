@@ -16,6 +16,13 @@ strategies/**/reports/*.md
 *.jpg
 *.jpeg
 
+# 错题本(本地 per-user,不含 PII;真文件存 ~/.boss-zhipin-skill/ 在仓库外。
+# 万一有人把 BOSS_ZHIPIN_STATE_DIR 指进仓库子目录[notebook.py 会拒]或误拷进来,这里兜底忽略真文件,保留 *.example)
+notebook.jsonl
+notebook.*.jsonl
+!notebook.example.jsonl
+!strategies/**/notebook.example.jsonl
+
 # 本地/系统杂物
 .DS_Store
 *.log

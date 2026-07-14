@@ -86,7 +86,8 @@
 
 ```
 Step 0  健康检查  [operation-map §7d 健康检查读法,选择器已验证]
-  · **跑前校验**:`python3 validate.py strategies/<name>/` —— 过了再跑,把"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range"这类配置错挡在早期(schema 见 schemas/,校验器不依赖 jsonschema)
+  · **跑前校验**:`python3 validate.py strategies/<name>/` —— 过了再跑,把"缺 rubric.must / touch_policy 拼错 / 开 salary_leverage 没给 base_salary_range / notebook 取值超范围"这类配置错挡在早期(schema 见 schemas/,校验器不依赖 jsonschema)
+  · **读错题本(开跑第一步,若 `notebook.capture≠off`)**:`python3 scripts/notebook.py list`(多账号加 `--account <opaque_id>`)→ **应用所有 active `auto` 条目**(report_order/report_c_tier/report_detail_count/chat_route/resume_read_discipline,只影响呈现/内部路由/纪律,可逆);把达 `confirm_after_n_repeats` 的 auto 偏好列为"待固化"提议(§7 报告【想固化成默认?】节)。**note_only 只读作建议、绝不执行**。错题本**缺失/损坏 = 忽略 + 报告异常继续**(fail-closed,外发/花卡不因此放宽,详见 §13、references/notebook.md)
   · 登录:eval .user-name 有值(⚠ 浏览器 id 用你自己的,SKILL.md §用前必做)
   · 每日打招呼额度:**接口优先(2026-07-07)**——`privilege/my/detail` 每日沟通总量(200) − `recruitDataCenter/get.json` 的 `todayData.chatInitiative`(今日已打招呼)= 剩余(见 operation-map §7d);DOM 兜底=读 data-recruit 的「沟通 X/200」。剩余<~10 就收/停,别撞上限触软风控
   · 畅聊卡余量:**接口** `geeks.json` 顶层 `chatCardCount`(operation-map §7d/§7i);单次开聊成本逐人 1~3 张(读 `searchChatCardCostCount`),预算按每人实际消耗折算,别按固定 3
@@ -132,6 +133,7 @@ Step 5  搜索通道(补量)       [operation-map §7e 接口主路径 / §2B DO
   · 浏览列表免费;**触达打码人要开聊、耗畅聊卡**(逐人1~3卡/次,读searchChatCardCostCount,+捆绑索要简历/微信/电话PII)。**前置闸:开聊前确认 `budget.authorize_card_pii_bundle==true`**(Step 0 的 validate.py 已强制:没这个 true 且 chat_cards>0 直接拦下);→ Step 6 按 budget.chat_cards 逐张记账、超停。开聊走 UI(有确认框/境外提示门)。
 
 Step 6  触达(按 touch_policy)  [§5 / operation-map §7j 推荐扫池群发]
+  · 🔴 **候选人硬门(每个 greet/send_custom_message/follow_up/request_resume/use_chat_card 前必过,独立于错题本)**:`python3 scripts/notebook.py gate-action --action <动作> --intent <该人 candidate_intent>` → `allowed` 才做;`needs_review`(pending/未确认 interested 的后接触动作)= 停,等用户确认 interested 再继续;`blocked`(该人 reject/no_interest/do_not_contact)= 硬阻断,只在报告给建议。**先候选人硬门、后错题本(只会收紧);错题本缺失/损坏不放宽**(§13、operation-map §3.1)。
   · **主引擎=推荐通道"扫池群发"(免费、可靠,§7j)**:对 Step1 枚举出的推荐池、经 Step3 去重(haveChatted/isFriend==0)+ Step4 打分达标的人,逐个在 recommendFrame 卡上点 `button.btn-greet`(**一键、无确认弹层**,发系统模板"你好,我司急聘{岗位}一职,请问考虑么?",走标准额度**不扣卡**)。**无批量端点 → 逐卡循环点**;每个之间留间隔。
   · **额度闸**:日限 200 沟通,开跑前算 `剩余=200−todayData.chatInitiative`(§7d);逐个记数,到剩余=0 停,别硬闯。
   · **走量 vs 定点**:本步(推荐扫池群发)是**走量**;要**定点触达某几个指定的人**,走搜索定点法(清污染 jobId=0 + 该人独特关键词精准置顶 → UI 开聊,operation-map §7i;已开聊者自动从搜索隐藏、不用手动去重)。两者都可自动,别再当"定点做不到"。 **定点开聊执行层踩坑**(接口评估与 UI 触达用同一关键词、当场认人别离线复现清单、选岗控招呼调性+花卡前验 `li.active`、卡摘要会骗需读全简历+强签名核身)见 operation-map §7i-复盘。
@@ -226,8 +228,11 @@ unscored:数量+缺什么数据
 账本:累计合格(A)P/目标Q。畅聊卡余R(本轮用S)。今日打招呼U/上限。
 〔若 salary_leverage.enabled〕【破格候选】姓名|超带{gap}K|稀缺度{score}/10|建议加薪至{X}K→可达性|**需你勾同意才下轮触达**
 〔若 feedback.enabled〕【当日反馈评估】回复率{r}(基线{b})/已读率|诊断:{文案|人群|风控|观察}|预算建议:greets {旧}→{新建议}(不自动改)|{疑似风控已自动暂停?}
+〔若错题本有 active auto 条目〕【本轮按你的习惯做的调整】逐条:L-x · <模板化说明>(可撤销:说"撤销 L-x";platform_pitfall 注"N 天后自动过期")
+〔若有 auto 偏好达 confirm_after_n_repeats〕【想固化成默认?需你点头】<一句提议>(是/否)——用户点头才写 confirm active
 风险/异常 · 建议下一步(继续/转心跳/调策略/需人工点的深动作)
 ```
+> **透明两节由 reason_code + 模板生成,不从文件读自由文本**;这两节**不得隐藏**安全/成本/PII/异常/审计/待确认信息(展示偏好只影响候选人列表排版)。
 
 ---
 
@@ -313,3 +318,18 @@ playbook = 判定/调度/打分/触达策略/账本/报告(想什么、按序做
 - **落地**:strategy.yaml 加 `shared_ledger: strategies/_shared/ledger.jsonl`(不设=各用各的);id 用 §3 已有的稳定去重键跨策略对齐(打码名↔真名仍标 possible_dup)。**读写两侧都要接**:读侧=§3 Step 3 ④ 查全局 touched_jobs,写侧=§3 Step 7 触达后同步回写(validate.py 会校验 shared_ledger 路径与 touched_jobs/status_global 字段形状)。
 - **验收用例**(开启后跑一次):两个策略搜同一家公司的人 → 第二个策略对已触达者应 skip/降级,不重复打招呼。
 - 现阶段(单次+单岗)非必需;做团队/多岗持续招聘或阶段三心跳时再开。
+
+---
+
+## 13. 错题本(本地习惯清单;agent 当解释器,详见 references/notebook.md)
+
+错题本让 agent 记住**该用户的**使用习惯/纠正/平台踩坑,在**安全那层**自己调呈现/内部路由/纪律,被纠正时写一笔,每轮报告透明列"改了啥、怎么撤"。`scripts/notebook.py`(标准库)只负责**存储 + 校验 + 供给**,不理解自然语言、不接收候选人原文。**详细机制(数据模型/子命令/红线)只在 `references/notebook.md`,要用才读。**
+
+- **三层自治**(target 必须来自白名单,不接受自由文本控制行为):
+  - **auto**(自动应用、可逆、绝不外发/花钱):`report_order/report_c_tier/report_detail_count/chat_route/resume_read_discipline`。开跑读到即应用,报告标注、一键可撤。
+  - **confirm**(会话内一句确认后固化):`greeting_tone`(外发语调)、`default_skip_c_tier`(长期默认)。达 `confirm_after_n_repeats` 才提议,用户点头才写 active。
+  - **note_only**(永不执行,只记建议):预算/花卡/touch_policy/PII/换微信电话/发布关闭删除职位/约面/薪资/contact_selection/search_keywords/rubric/scoring + **公平性代理**(学校/公司名气/城市/地域/年龄/性别/婚育/职业空档)。
+- **过程中被纠正/观察到习惯/撞平台坑** → 归一化成结构化条目(`tier/target/value/reason_code` 全来自白名单):命中 auto→立即应用+追加+报告标注;属 confirm→会话内提议一次;命中 note_only/红线/公平性代理→**只**报告作不可执行建议。**分类不确定→只当前会话遵循,不写错题本。**
+- **红线**:只收权不扩权;红线清单永不可授权;候选人硬门独立(§6 触达前 gate-action);PII-free(绝不写候选人姓名/手机/微信/简历/消息原文/securityId);**fail-closed**(错题本缺失/损坏,只读报告继续+报异常,外发/花卡/PII 不放宽)。
+- **撤销/清空**:`notebook.py revert --id L-x`,或用户直接删 `notebook.jsonl` 的那行;`notebook.py reset` 清空。`platform_pitfall` 带 TTL,读取/`gc` 时惰性过期。
+- **采集开关**:`strategy.yaml` 的 `notebook.capture: on|off`(默认 on);off 后不写,但已 active 安全偏好仍生效、管理命令(list/revert/gc/reset)仍可用。

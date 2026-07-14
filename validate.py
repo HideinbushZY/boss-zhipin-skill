@@ -20,6 +20,11 @@ except ImportError:
 
 TOUCH_POLICIES = {"report_first", "greet_A_capped", "greet_custom", "full"}
 SOURCES = {"recommend", "search", "interaction", "inbound"}
+# 候选人意图硬门状态(独立于错题本;见 SAFETY §6 / operation-map §3.1)
+CANDIDATE_INTENTS = {
+    "unknown", "pending_intent_review", "interested",
+    "reject", "no_interest", "do_not_contact",
+}
 TIERS = {"A", "B", "C", "unscored", "A*", "A*_salary_sensitive", None}
 STATUSES = {
     "found", "scored", "greeted", "chatted", "pending-reply", "replied",
@@ -125,6 +130,23 @@ def validate_strategy(path):
                 if cg.get("enabled") is True and cg.get("require_user_confirmation") is not True:
                     err("strategy.yaml: 开了 custom_greetings 必须显式 `require_user_confirmation: true` —— "
                         "定制招呼语要真实外发,红线要求每条先给用户过目(Y/N/编辑),缺省/false 都不行")
+
+    # ── 错题本配置块(§错题本;真正执行取值范围校验,不只写 schema) ──
+    nb = s.get("notebook")
+    if nb is not None:
+        if not isinstance(nb, dict):
+            err("strategy.yaml: `notebook` 应是映射(capture/platform_pitfall_ttl_days/confirm_after_n_repeats)")
+        else:
+            cap = nb.get("capture")
+            # PyYAML 会把 on/off 解析成 True/False,两种写法都接受
+            if cap is not None and cap not in (True, False, "on", "off"):
+                err(f"strategy.yaml: `notebook.capture` 应是 on|off(默认 on),得到:{cap!r}")
+            ttl = nb.get("platform_pitfall_ttl_days")
+            if ttl is not None and not (isinstance(ttl, int) and not isinstance(ttl, bool) and 1 <= ttl <= 90):
+                err(f"strategy.yaml: `notebook.platform_pitfall_ttl_days` 应是 1–90 的整数,得到:{ttl!r}")
+            car = nb.get("confirm_after_n_repeats")
+            if car is not None and not (isinstance(car, int) and not isinstance(car, bool) and 2 <= car <= 10):
+                err(f"strategy.yaml: `notebook.confirm_after_n_repeats` 应是 2–10 的整数,得到:{car!r}")
     return s
 
 
@@ -157,6 +179,10 @@ def validate_ledger(path):
                 warn(f"ledger [{who}]: source='{src}' 不在已知来源里({sorted(SOURCES)})—— 拼错还是新通道?")
             if "masked" in c and not isinstance(c["masked"], bool):
                 err(f"ledger [{who}]: masked 应是 true/false")
+            # 候选人意图硬门字段(独立于错题本;reject/no_interest/do_not_contact → 五类外发/花卡硬阻断)
+            ci = c.get("candidate_intent")
+            if ci is not None and ci not in CANDIDATE_INTENTS:
+                err(f"ledger [{who}]: candidate_intent='{ci}' 非法,应是 {sorted(CANDIDATE_INTENTS)} 之一")
             acts = c.get("actions")
             if acts is not None:
                 if not isinstance(acts, list):

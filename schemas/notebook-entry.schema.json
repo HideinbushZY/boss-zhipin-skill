@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "boss-zhipin 错题本条目 notebook.jsonl(每行一条)",
+  "description": "本地、per-user、PII-free 的习惯清单条目。三层自治(auto/confirm/note_only)× 白名单 target × 固定 value 枚举。禁自由文本、禁候选人 PII。真正强制在 scripts/notebook.py(写入函数)+ 本 schema 双拦;note_only/红线/公平性代理永远写不成 auto/confirm。存储位置在 Skill 目录之外(BOSS_ZHIPIN_STATE_DIR → ~/.boss-zhipin-skill/)。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "created_at", "tier", "kind", "target", "value", "status", "reason_code"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^L-[0-9]+$", "description": "稳定条目号 L-<n>,撤销/引用用" },
+    "created_at": { "type": "string", "description": "ISO8601 UTC 创建时间" },
+    "reverted_at": { "type": ["string", "null"], "description": "撤销时间(status=reverted 时写)" },
+    "expired_at": { "type": ["string", "null"], "description": "惰性过期时间(status=expired 时写)" },
+    "tier": {
+      "enum": ["auto", "confirm", "note_only"],
+      "description": "自治层:auto=自动应用(只影响呈现/内部路由,可逆,绝不外发/花钱);confirm=会话内一句确认后固化;note_only=永不执行,只作报告建议"
+    },
+    "kind": {
+      "enum": ["preference", "platform_pitfall", "correction", "habit"],
+      "description": "来源类型;platform_pitfall 才用 ttl_days 惰性过期"
+    },
+    "target": {
+      "type": "string",
+      "description": "受白名单约束,见 tier×target 的 oneOf 分支;绝不接受自由文本控制行为"
+    },
+    "value": {
+      "description": "必须来自该 target 的固定枚举(report_detail_count 为 1-50 整数;note_only 恒为 'flagged')。禁自由文本。",
+      "type": ["string", "integer"]
+    },
+    "status": {
+      "enum": ["active", "reverted", "expired"],
+      "description": "active=生效;reverted=用户撤销;expired=platform_pitfall TTL 到期(读取时惰性写)"
+    },
+    "evidence_count": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "观察到几次;达 confirm_after_n_repeats 时提议把 auto 偏好固化为 confirm 默认"
+    },
+    "ttl_days": {
+      "type": ["integer", "null"],
+      "minimum": 1,
+      "maximum": 90,
+      "description": "仅 platform_pitfall 用;created_at + ttl_days 过期即惰性失效。其余 kind 恒 null"
+    },
+    "reason_code": {
+      "enum": [
+        "user_preference",
+        "platform_route_failure",
+        "wrong_recipient",
+        "duplicate_contact",
+        "message_tone",
+        "report_format"
+      ],
+      "description": "固定枚举,禁自由文本;报告用它 + 模板生成透明说明,不从文件读自由文本"
+    }
+  },
+  "oneOf": [
+    {
+      "description": "① auto —— 自动应用,可逆,绝不外发/花钱",
+      "properties": {
+        "tier": { "const": "auto" },
+        "target": {
+          "enum": [
+            "report_order",
+            "report_c_tier",
+            "report_detail_count",
+            "chat_route",
+            "resume_read_discipline"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "a_first",
+                "default",
+                "show",
+                "hide",
+                "direct_url",
+                "left_menu_chat",
+                "full_read_before_touch"
+              ]
+            },
+            { "type": "integer", "minimum": 1, "maximum": 50 }
+          ]
+        }
+      }
+    },
+    {
+      "description": "② confirm —— 会话内一句确认后固化(改长期默认或涉及外发文案)",
+      "properties": {
+        "tier": { "const": "confirm" },
+        "target": { "enum": ["greeting_tone", "default_skip_c_tier"] },
+        "value": {
+          "type": "string",
+          "enum": ["warm", "concise", "formal", "default", "true", "false"]
+        }
+      }
+    },
+    {
+      "description": "③ note_only —— 永不执行,只作报告建议;红线/公平性代理都归此层,value 恒 flagged(不留任何可驱动行为的语义)",
+      "properties": {
+        "tier": { "const": "note_only" },
+        "target": {
+          "enum": [
+            "budget_chat_cards",
+            "budget_greets",
+            "touch_policy",
+            "pii_request",
+            "phone_wechat_swap",
+            "job_publish_close_delete",
+            "interview_arrange",
+            "salary",
+            "contact_selection",
+            "search_keywords",
+            "rubric",
+            "scoring",
+            "school",
+            "company_fame",
+            "city",
+            "region",
+            "age",
+            "gender",
+            "marital",
+            "employment_gap"
+          ]
+        },
+        "value": { "const": "flagged" }
+      }
+    }
+  ]
+}
