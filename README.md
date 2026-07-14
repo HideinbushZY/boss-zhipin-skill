@@ -22,7 +22,7 @@
 
 > ⚠ **The operational docs are in Chinese on purpose** — Boss直聘's UI is Chinese and the selectors match Chinese on-page text, so the how-to-click content stays in Chinese. This English section is for discoverability; the working knowledge is in `SKILL.md` / `operation-map.md` / `playbook.md`.
 
-**Safety.** Hard red lines that never auto-fire (report only): swap phone / swap WeChat / schedule interview / **delete** jobs / report·bulk-reject. **Publish/close jobs are agent-doable but gated** (close is reversible; publish reads back the 4 locked fields for confirmation and never buys paid exposure). Outreach and paid actions (chat-cards, 1–3 per open) are gated by the strategy's `touch_policy` / `budget`. Rate-limit and back off on any risk-control signal.
+**Safety.** Hard red lines that never auto-fire (report only): swap phone / swap WeChat / schedule interview / **delete** jobs / report·bulk-reject. **Publish/close jobs are agent-doable but gated** (close is reversible; publish reads back the 4 locked fields for confirmation and never buys paid exposure). Outreach and paid actions (chat-cards, 1–3 per open) are gated by the strategy's `touch_policy` / `budget`, which **defaults to `report_first` (zero outbound)** — you must explicitly upgrade to `greet_*`/`full`. A **Phase-0 candidate-intent hard gate** (`scripts/notebook.py gate-action`) blocks the five outbound actions for anyone marked `reject/no_interest/do_not_contact`, and holds a new reply at `pending_intent_review` until you confirm `interested` — independent of, and unopenable by, the notebook. A local, per-user, PII-free **notebook** only ever tightens safe presentation/routing, never loosens a red line, and fails closed if missing/corrupt. Rate-limit and back off on any risk-control signal.
 
 **Maturity (honest).** A **qualified single-job sourcing engine** — the core recommend-channel loop (find→score→greet→dedup→receipt-scan→report) is battle-tested over 7 real-account rounds. Boundaries, on purpose: the loop **ends at "résumé received"**; **换电话/微信 is a permanent red line, never auto** (the paid-search "开聊" bundles a platform request for résumé/WeChat/phone, so `chat_cards>0` requires an explicit `authorize_card_pii_bundle: true`, enforced by `validate.py`); **约面 is untested** (red line). The operator-intuition layer (custom greetings / feedback loop / salary-flex / card prescreen) is implemented and its **logic validated on real data**, but **not yet validated with a real outbound send**. It is a sourcing engine for one recruiter — **not a complete recruiting platform** (no interview/offer, no heartbeat, single-job). See "现状与已知局限" below.
 
@@ -35,6 +35,7 @@
 | **SKILL.md** | 触发头 | 什么时候用、四条操作铁律、安全门(红线)。你的 agent 先读它。 |
 | **operation-map.md** | 执行层 | 每个页面怎么点、全部实测选择器、踩坑速查、健康检查/扫回执/清默认等确切步骤。 |
 | **playbook.md** | 编排层 | 把策略解析成配置 → 找人[推荐/搜索/互动] → LLM 打分 A/B/C → 按档触达 → 落报告。 |
+| **references/notebook.md** + **scripts/notebook.py** | 安全层 | 本地 per-user PII-free「错题本」习惯清单(agent 当解释器,三层白名单/只收权/fail-closed)+ Phase 0 候选人意图硬门 `gate-action`(触达前必过)。要用才读。 |
 | **strategies/asr-engineer-example/** | 示例 | 一个填好的策略样例:`strategy.yaml`(配置)+ `ledger.example.jsonl`(账本 schema)+ `reports/`(报告格式)。**均为脱敏示例数据,非真实候选人。** |
 
 ---
@@ -64,7 +65,9 @@
 
 **换电话 / 换微信 / 约面 / 删除职位 / 举报 / 批量标记不合适** —— 这些最深的 PII/承诺/**不可逆**破坏性动作**只在报告里给建议,等人来点**。
 - **发布 / 关闭职位 = agent 可代操作(非永久红线,但有确认硬门)**:关闭可逆(可重开、数据保留)→ 关前核对是哪个岗+用户确认;发布对外公开且 4 字段永久锁死 → 提交前回读 4 锁死字段+内容确认、发布后只关不买曝光。**唯一不可逆永久红线是删除职位。**
-- 外发内容(打招呼/回复/求简历)与消耗权益(畅聊卡)在策略里用 `touch_policy` / `budget` 授权;用户没授权就不做。
+- 外发内容(打招呼/回复/求简历)与消耗权益(畅聊卡)在策略里用 `touch_policy` / `budget` 授权;用户没授权就不做。**`touch_policy` 默认 `report_first`(零外发,只研究给名单)**,要外发得显式升档 `greet_*`/`full`。
+- **候选人意图硬门(Phase 0,独立于错题本)**:对某人 `greet/send_custom_message/follow_up/request_resume/use_chat_card` 五类外发前先过 `python3 scripts/notebook.py gate-action`——被标 `reject/no_interest/do_not_contact` 的**硬阻断**;新回复先进 `pending_intent_review`,在你确认 `interested` 前不自动求简历/跟进;**错题本也解不开这道门**(见 `SAFETY.md` §8)。
+- **错题本(本地 per-user PII-free 习惯清单)**:只在安全那层自动调呈现/内部路由/纪律,**只收权不扩权、绝不放宽红线**,缺失/损坏 fail-closed(见 `SAFETY.md` §9 与 `references/notebook.md`)。
 - **搜索畅聊卡"开聊" = 逐人消耗 1~3 张(读 `searchChatCardCostCount`,非固定 3)+ 自动"索要简历/微信/电话"**(内置了换微信/电话的 PII 请求)——用它前必须让用户知情并接受这个捆绑。
 - 低频、限速、分批:招聘方账号有行为风控;命中疑似风控就停手冷却,别连续重启 Chrome(可能触发登出,登出需用户手机扫码,agent 代替不了)。
 

@@ -20,7 +20,7 @@ except ImportError:
 
 TOUCH_POLICIES = {"report_first", "greet_A_capped", "greet_custom", "full"}
 SOURCES = {"recommend", "search", "interaction", "inbound"}
-# 候选人意图硬门状态(独立于错题本;见 SAFETY §6 / operation-map §3.1)
+# 候选人意图硬门状态(独立于错题本;见 SAFETY §8 / operation-map §3.1)
 CANDIDATE_INTENTS = {
     "unknown", "pending_intent_review", "interested",
     "reject", "no_interest", "do_not_contact",
@@ -75,7 +75,7 @@ def validate_strategy(path):
             if r.get(k) is not None and not isinstance(r.get(k), list):
                 err(f"strategy.yaml: `rubric.{k}` 应是列表")
 
-    tp = s.get("touch_policy", "full")
+    tp = s.get("touch_policy", "report_first")
     if tp not in TOUCH_POLICIES:
         err(f"strategy.yaml: `touch_policy`='{tp}' 非法,应是 {sorted(TOUCH_POLICIES)} 之一")
 

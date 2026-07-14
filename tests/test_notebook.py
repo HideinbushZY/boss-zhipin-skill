@@ -260,5 +260,108 @@ class TestDisplayPrefBoundary(NotebookTestBase):
         self.assertEqual(c & n, set())
 
 
+class TestBadTTLSurvives(NotebookTestBase):
+    # M1:ttl_days 语义损坏(合法 JSON、坏值,如 "abc"/1e20)→ list/gc/gate-action 都不许崩,
+    # 归 corrupt、gate-action 仍 fail-closed。补 test_list_survives_corruption 的"语义坏行"缺口。
+    def _write_rows(self, ttl_literal):
+        path = os.path.join(self.tmp, "notebook.jsonl")
+        good = ('{"id":"L-1","created_at":"2026-01-01T00:00:00Z","tier":"auto",'
+                '"kind":"preference","target":"report_order","value":"a_first",'
+                '"status":"active","evidence_count":1,"ttl_days":null,'
+                '"reason_code":"user_preference","reverted_at":null,"expired_at":null}')
+        bad = ('{"id":"L-2","created_at":"2026-01-01T00:00:00Z","tier":"auto",'
+               '"kind":"platform_pitfall","target":"chat_route","value":"left_menu_chat",'
+               '"status":"active","evidence_count":1,"ttl_days":%s,'
+               '"reason_code":"platform_route_failure","reverted_at":null,"expired_at":null}'
+               % ttl_literal)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(good + "\n")
+            f.write(bad + "\n")
+
+    def test_list_survives_bad_ttl_string(self):
+        self._write_rows('"abc"')
+        res = nb.list_entries(now="2026-06-01T00:00:00Z")   # 旧代码 int("abc") 会崩
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["status"], "corrupt")           # 坏行归 corrupt
+        self.assertEqual(len(res["entries"]), 2)             # 好行仍用
+
+    def test_gc_survives_bad_ttl_overflow(self):
+        self._write_rows("1e20")
+        res = nb.gc(now="2026-06-01T00:00:00Z")              # 旧代码 timedelta 会 OverflowError
+        self.assertTrue(res["ok"])
+        self.assertEqual(res["status"], "corrupt")
+
+    def test_gate_action_fail_closed_with_bad_ttl(self):
+        for lit in ('"abc"', "1e20"):
+            self._write_rows(lit)
+            # 硬门放行的动作:坏 ttl 不放宽也不崩;notebook 归 corrupt
+            r = nb.gate_action("greet", "unknown")
+            self.assertEqual(r["decision"], "allowed")       # 初次 greet(硬门原样)
+            self.assertEqual(r["notebook_status"], "corrupt")
+            # 硬门阻断的动作:坏行绝不放宽
+            r2 = nb.gate_action("request_resume", "no_interest")
+            self.assertEqual(r2["decision"], "blocked")
+
+
+class TestBoundaries(NotebookTestBase):
+    # L4:payload 带控制键(account_id/capture/include)仍能 record(lint 前剥离,不再是死代码)
+    def test_record_with_control_keys_still_records(self):
+        r = nb.record({"target": "report_order", "value": "a_first",
+                       "account_id": "acct1", "capture": "on", "include": "all"})
+        self.assertTrue(r["persisted"])
+        self.assertEqual(r["entry"]["target"], "report_order")
+        # 控制键没被当成条目字段落盘
+        self.assertNotIn("account_id", r["entry"])
+        self.assertNotIn("capture", r["entry"])
+
+    # L5:caller 传入的 id 非法格式(非 ^L-[0-9]+$)→ 拒绝、不落盘
+    def test_bad_id_format_rejected(self):
+        self.assertRejected({"target": "report_order", "value": "a_first", "id": "X-9"},
+                            reason_code="bad_id")
+
+    def test_good_id_format_accepted(self):
+        e = nb.record({"target": "report_order", "value": "a_first", "id": "L-42"})["entry"]
+        self.assertEqual(e["id"], "L-42")
+
+    # L6:bad_account_id
+    def test_bad_account_id_rejected(self):
+        with self.assertRaises(nb.NotebookError) as ctx:
+            nb.notebook_filename("bad id!!")
+        self.assertEqual(ctx.exception.reason_code, "bad_account_id")
+
+    # L6:文件级 symlink 拒绝
+    @unittest.skipUnless(os.name == "posix", "POSIX symlink only")
+    def test_file_symlink_rejected(self):
+        target = os.path.join(self.tmp, "real.jsonl")
+        with open(target, "w", encoding="utf-8"):
+            pass
+        os.symlink(target, os.path.join(self.tmp, "notebook.jsonl"))
+        with self.assertRaises(nb.NotebookError) as ctx:
+            nb.record({"target": "report_order", "value": "a_first"})
+        self.assertEqual(ctx.exception.reason_code, "symlink_rejected")
+
+    # L6:record 遇 notebook_unreadable(路径是目录 → 读时 OSError → status=error)
+    def test_record_notebook_unreadable(self):
+        os.mkdir(os.path.join(self.tmp, "notebook.jsonl"))
+        with self.assertRaises(nb.NotebookError) as ctx:
+            nb.record({"target": "report_order", "value": "a_first"})
+        self.assertEqual(ctx.exception.reason_code, "notebook_unreadable")
+
+    # L6:revert 遇 notebook_corrupt(有损坏行 → 拒绝整写以免丢行)
+    def test_revert_notebook_corrupt(self):
+        path = os.path.join(self.tmp, "notebook.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("GARBAGE not json\n")
+        with self.assertRaises(nb.NotebookError) as ctx:
+            nb.revert("L-1")
+        self.assertEqual(ctx.exception.reason_code, "notebook_corrupt")
+
+    # L6:非 platform_pitfall 带 ttl_days → bad_ttl
+    def test_ttl_on_non_pitfall_rejected(self):
+        self.assertRejected({"target": "report_order", "value": "a_first",
+                             "kind": "preference", "ttl_days": 30},
+                            reason_code="bad_ttl")
+
+
 if __name__ == "__main__":
     unittest.main()

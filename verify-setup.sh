@@ -30,6 +30,17 @@ else
   BA_OK=0
 fi
 
+# ── ①b python3 + PyYAML（validate.py 硬依赖，缺了 Step 0 校验直接挂）──
+if command -v python3 >/dev/null 2>&1; then
+  if python3 -c 'import yaml' >/dev/null 2>&1; then
+    ok "python3 + PyYAML 就绪（validate.py 可跑）"
+  else
+    bad "缺 PyYAML → validate.py 跑不了（Step 0 策略校验会挂）：pip3 install pyyaml（或 python3 -m pip install pyyaml）"
+  fi
+else
+  bad "未装 python3 → validate.py / scripts/notebook.py（候选人硬门 gate-action）都跑不了：先装 Python 3"
+fi
+
 # ── ② 浏览器 id ──────────────────────────────────────
 if [ "$BID" = "<YOUR_BROWSER_ID>" ]; then
   bad "没传浏览器 id → 用法: bash verify-setup.sh <browser_id> [session]；查 id: 'browser-act browser list'"

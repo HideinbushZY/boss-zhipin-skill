@@ -156,8 +156,10 @@ pending_intent_review ──(用户明确确认)──► interested | reject | 
 - 确认 `reject | no_interest | do_not_contact` → 对该人 `greet / send_custom_message / follow_up / request_resume / use_chat_card` 五类**硬阻断**。
 
 **gate 判定(触达前统一走,五类动作无旁路):`python3 scripts/notebook.py gate-action --action <动作> --intent <该人 candidate_intent>`**
-1. **先候选人硬门(完全不读错题本)**:`reject/no_interest/do_not_contact`→`blocked`;`unknown/pending_intent_review`→四类后接触动作 `needs_review`(初次 greet 放行);`interested`→放行;非法/缺意图→fail-closed。
+1. **先候选人硬门(完全不读错题本)**:`reject/no_interest/do_not_contact`→`blocked`(五类);`unknown`→初次 `greet` 放行、四类后接触动作 `needs_review`;`pending_intent_review`→五类(含 `greet`)全 `needs_review`;`interested`→放行;缺意图(None)按 unknown 处理、非法意图→`blocked`(fail-closed)。
 2. **后错题本(只会收紧、绝不放宽)**:把结论往更严处收;**错题本缺失/损坏也不放宽**(`notebook_status` 标 `missing/corrupt`,硬门结论原样保留)。
+
+**首触定制招呼语的过门口径(设计决定,消死锁,见 playbook §11.1)**:首次触达补发的定制招呼句,随首触**按 `greet` 过门**(`intent=unknown` 放行;`custom_greetings` 已逐条人工确认,它就是首次外呼);**只有对已接触候选人的后续 `send_custom_message` 才按 `send_custom_message` 过门**(需 `interested`)。这样消除"首触 `intent=unknown` 时 `send_custom_message` 被判 `needs_review` 卡死首触定制句"的死锁。
 
 **这道门独立于错题本,也解不开它**:错题本堆再多 active 条目也翻不动 `blocked`。机制细节见 `references/notebook.md §5`;红线见 `SAFETY.md §8`。
 
