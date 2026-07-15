@@ -182,15 +182,15 @@ pending_intent_review ──(用户明确确认)──► interested | reject | 
 ### 4.2 发布职位 `/web/chat/job/edit`(多步向导,**2026-07-07 真机发布过审实测**)
 入口:职位管理页点 `bzl-button.publish-btn`(**shadow DOM,且在职位列表 iframe 内**——eval 要遍历 iframe.contentDocument 找它、再点其 shadowRoot 的 button)进向导(别冷加载 edit URL)。单页表单,填完点底部 `button[type=submit]`「发布」。
 - **🔒 硬约束**:发布后「招聘类型/职位名称/职位类型/工作城市」**永久不可修改**(向导顶部有此提示);经验/薪资/学历/JD 等发布后可改。**提交前必回读这 4 项给用户确认**(安全门,见 §6)。
-- **⚠️ 2026-07-08 真机复测**:发布表单是复杂单页;名称/描述/经验/学历(ui-select)可自动填,但「职位类型」`input[name=jobCategory]`/「工作地址」/薪资 的选择器点 input 或外层都**不弹选项层**(需专门逆向)→ 真发前这几项(尤其永久锁死的职类/城市)人工在向导选并核对;强点发布缺必填只会撞平台校验、不建岗(不会误发残缺公开岗)。
+- **⚠️ 2026-07-14 真机复测(部分推翻 2026-07-08 note,以此为准)**:名称/描述/经验/学历/**薪资均可自动填**(逐字段法见下);「工作地址/城市」**通常已用账号存的地址预填**(核对即可)。**唯一自动化打不开的是「职位类型」**(锁死)——见下方专项诊断。强点发布缺必填只撞平台校验、不建残缺公开岗(安全)。
 - **字段与填法(索引随每步操作漂,每步重取)**:
   - 招聘类型:`chose-item` 单选,社招全职默认(核 active);是否驻外:`chose-item`,选「境内岗位」。
   - 职位名称:`input[name=jobName]`,`input <idx>` 直接写。
   - 职位描述:`textarea`,`input <idx>` 写 JD(**禁 QQ/微信/电话/特殊符号**否则校验挂;用「岗位职责/任职要求」纯文本标题即可,别用生僻符号)。
-  - 职位类型(锁死):`input[name=jobCategory]` → 点开弹「请选择职位类型」推荐标签(按你职位方向 Boss 推荐几个,如 硬件产品经理/AI产品经理 等),每个是 `div.job-recommend-content_item`(**注意:前面的「产品经理」是分组标题不是选项,别点错**);选叶子后弹层自动关、input 回填。要更细类目点「查看全部职位类型」。
+  - 职位类型(锁死)—— **🔴 当前这版自动化打不开,须人工在向导里点选**。⚠️ **这是改版腐烂,别当"永远不可能"**:07-07 时点 input 就能开 picker、真机发布过审(§4.2 标注 2026-07-07,git blame `eb7b9b3`);Boss 后来把 input 改成 `readonly`、把触发挪到外层 wrapper,点 input 才失效(07-08 复测记录)。**Boss 再改版时需重新映射当前触发,而非默认不可能。** 2026-07-14 逆向到底的当前根因:`input[name=jobCategory]` 是 **`readonly`**,真正触发在外层 **`.ipt-wrap`** 包裹层,弹层渲染成 iframe 内 `.job-category-tag-container.position-mark`,且**只认 `isTrusted=true` 的真实点击**。现有工具全堵:①browser-act 对这个 readonly input **索引时有时无**,且**即便索引到、`click <idx>` 也不在元素上触发任何事件**(捕获监听器实测:input 上 pointerdown/mousedown/focus/click/mouseup 全不触发、文档级命中也为 null,是 browser-act 对该元素的 hit-test/坐标定位失败,不是"点了没弹");又从不索引真正触发的 wrapper(加 tabindex/role=button 也没被索引)、`click` 只收 index 无坐标点击;②eval 派发的合成事件 `isTrusted=false`,打不开;③另起一个 CDP 工具须是**独立未登录** Chrome(共享登录态 profile 会触发会话失效);④chrome-direct 用 **pipe 式 CDP、无 TCP 调试端口**,外部 CDP 客户端接不进。**要真自动化须改工具**:chrome-direct 启动加 `--remote-debugging-port`(开 TCP)让外部坐标点击客户端接入,或给 browser-act 加"按坐标/选择器 trusted 点击"。人工选:点 input 弹「请选择职位类型」推荐标签,叶子是 `div.job-recommend-content_item`(前面的「产品经理」等是分组标题别点错),更细点「查看全部职位类型」;选叶子后弹层自动关、input 回填、城市/职类**永久锁死**。
   - 经验/学历:`ui-select-selection` 下拉,`click <idx>` 开,选项是 `ui-select-item`(经验档:不限/1年以内/1-3/3-5/5-10/10年以上——**无自定义区间**)。
-  - 薪资:三个 `ui-select`(最低月薪/最高月薪/薪资月数)。**⚠坑:薪资下拉选项渲染在 portal,browser-act `state` 索引不到,只能 eval 读 `.ui-select-dropdown` + eval-click 目标项**(如 `30k`/`60k`/`16个月`;选最低后最高自动填个默认要改;月数只单值 12-24 个月,**无区间**)。选项文本小写 `k`。
-  - 工作地址(锁死城市来源):`input[placeholder=选择工作地点]` → 弹「请选择工作地址」列账号已存地址(`div.address-item`,radio `normal-radio`)→ 选目标城市那行 → 点 `btn-sure-v2`「使用该地址」→ input 回填,**城市由此定死**。
+  - 薪资(**可自动填,2026-07-14 实测通**):三个 `ui-select-selection`(最低月薪/最高月薪/薪资月数)**本身被 browser-act 索引到**(`click <idx>` 开下拉);但**选项渲染在 portal**、state 索引不到 → 开下拉后用 **eval 读可见 `.ui-select-dropdown` + eval-click 目标项**(文本小写如 `40k`/`70k`;选最低后最高自动填默认值、要改;月数默认 12 个月,单值无区间)。**经验/学历同法**(browser-act `click <idx>` 开、再 eval-click 可见 `.ui-select-item`)。
+  - 工作地址(锁死城市来源)—— **常已用账号存的地址预填,核对城市即可**;需改时:`input[placeholder=选择工作地点]`(也 readonly)→ 弹「请选择工作地址」列账号已存地址(`div.address-item`,radio `normal-radio`)→ 选目标城市那行 → 点 `btn-sure-v2`「使用该地址」→ input 回填,**城市由此定死**。若账号无预存地址、需新增,则同「职位类型」的 trusted-点击难题,需人工。
   - 职位关键词:可能自动带一个;`add-skill` 加。
   - 协议「已阅读并遵守《招聘行为管理规范》」无独立勾选框,点「发布」即视为同意。
 - **发布 → 弹「审核通过·当前职位已通过审核」**(一般秒过审)+ 盖一个**付费曝光升级推销弹层**(限时升级/预计增加回复投递)——**只点 `boss-popup__close` 关掉,绝不买**(付费=红线)。关掉后进职位管理「开放中」即验证成功。
